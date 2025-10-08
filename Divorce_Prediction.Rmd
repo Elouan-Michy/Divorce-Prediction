@@ -57,7 +57,13 @@ Variables métadonnées :
 - `domestic_violence_history` = Historique de violence domestique
 - `trust_score` = Score de confiance
 
+
 ```{r 2 Boxplot Numérique}
+barplot(table(data.brute$age_at_marriage) / sum(table(data.brute$age_at_marriage)))
+
+```
+
+```{r 3 Boxplot Numérique}
 # Nom des colonnes
 named_columns <- colnames(data.brute)
 type_columns <- sapply(data.brute, class)
@@ -68,8 +74,6 @@ for (name in named_columns) {
   boxplot(data.brute[[name]], main = name)
   }
 }
-
-  
 
 ```
 
