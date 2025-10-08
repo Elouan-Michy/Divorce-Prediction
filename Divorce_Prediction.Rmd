@@ -1,0 +1,26 @@
+---
+title: "Divorce Prediction"
+author: "Elouan-Joris"
+date: "2025-09-30"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+```{r cars}
+data.brute = read.csv("divorce_df.csv")
+str(data.brute)
+```
+
+```{r cars}
+hist(data.brute$age_at_marriage, freq = FALSE, col = "lightblue", main = "Âge au mariage")
+lines(density(data.brute$age_at_marriage), col = "red", lwd = 2)
+
+hist(data.brute$marriage_duration_years, freq = FALSE) 
+```
+
