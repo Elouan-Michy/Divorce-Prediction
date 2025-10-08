@@ -2,22 +2,31 @@
 title: "Divorce Prediction"
 author: "Elouan-Joris"
 date: "2025-09-30"
-output: html_document
+output:
+  html_document:
+    toc: true                # ✅ active la table des matières
+    toc_float: true          # ✅ menu déroulant flottant sur le côté
+    number_sections: true    # ✅ numérotation des sections
+    theme: cosmo             # 🌈 thème visuel (cosmo, united, journal, etc.)
+    highlight: tango         # 🎨 style pour le code
+    code_folding: show       # 🔽 possibilité de plier/déplier le code
 ---
+
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+# - Introduction
 
 
-```{r cars}
+
+```{r 1}
 data.brute = read.csv("divorce_df.csv")
 str(data.brute)
 ```
 
-```{r cars}
+```{r 2}
 hist(data.brute$age_at_marriage, freq = FALSE, col = "lightblue", main = "Âge au mariage")
 lines(density(data.brute$age_at_marriage), col = "red", lwd = 2)
 
