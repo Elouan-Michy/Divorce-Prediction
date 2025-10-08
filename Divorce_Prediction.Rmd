@@ -19,17 +19,57 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # - Introduction
 
+## Observations des données brute
 
-
-```{r 1}
+```{r 1 Chargement du fichier}
 data.brute = read.csv("divorce_df.csv")
 str(data.brute)
 ```
+## Analyse des données brutes
 
-```{r 2}
-hist(data.brute$age_at_marriage, freq = FALSE, col = "lightblue", main = "Âge au mariage")
-lines(density(data.brute$age_at_marriage), col = "red", lwd = 2)
+**Presentation des variables**
 
-hist(data.brute$marriage_duration_years, freq = FALSE) 
+Variables principales :
+
+- `age_at_marriage` = L'âge à laquelle le couple s'est marié (int)
+- `marriage_duration_years` = Temps écoulé à partir du mariage (int)
+- `divorced` = Si le couple est divorcé ou non (int)
+
+Variables métadonnées :
+
+- `num_children` = Nombre d'enfant dans le couple
+- `education_level` = Le niveau d'éducation
+- `employment_status` = Statut du couple
+- `combined_income` = Revenu combiné
+- `religious_compatibility` = Compatibilité religieuse
+- `cultural_background_match` = Correspondance culturelle
+- `communication_score` = Score de communication
+- `conflict_frequency` = Fréquence des conflits
+- `conflict_resolution_style` = Style de résolution des conflits
+- `mental_health_issues` = Problèmes de santé mentale
+- `financial_stress_level` = Niveau de stress financier
+- `infidelity_occurred` = Infidélité survenue
+- `counseling_attended` = A suivi un counseling
+- `social_support` = Soutien social
+- `shared_hobbies_count` = Nombre de hobbies partagés
+- `marriage_type` = Type de mariage
+- `pre_marital_cohabitation` = Cohabitation avant le mariage
+- `domestic_violence_history` = Historique de violence domestique
+- `trust_score` = Score de confiance
+
+```{r 2 Boxplot Numérique}
+# Nom des colonnes
+named_columns <- colnames(data.brute)
+type_columns <- sapply(data.brute, class)
+
+
+for (name in named_columns) {
+  if (type_columns[name] == "integer"){
+  boxplot(data.brute[[name]], main = name)
+  }
+}
+
+  
+
 ```
 
