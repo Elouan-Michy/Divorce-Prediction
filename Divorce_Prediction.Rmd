@@ -33,7 +33,10 @@ library(dplyr)
 # - Introduction
 
 ```{r 1 Chargement du fichier divorce_df.csv, echo = FALSE}
-data.brute = read.csv("divorce_df.csv")
+data.brute <- read.csv("divorce_df.csv")
+dimension <- dim(data.brute)
+n <- dimension[1]
+p <- dimension[2]
 ```
 ## - Presentation des variables
 
@@ -42,7 +45,7 @@ data.brute = read.csv("divorce_df.csv")
 
 # Création du dataframe
 
-Nom_de_la_variable = c("age_at_marriage","marriage_duration_years","divorced","num_children",
+Nom_de_la_variable <- c("age_at_marriage","marriage_duration_years","divorced","num_children",
                          "education_level","employment_status","combined_income",
                          "religious_compatibility","cultural_background_match","communication_score",
                          "conflict_frequency","conflict_resolution_style","mental_health_issues",
@@ -50,7 +53,7 @@ Nom_de_la_variable = c("age_at_marriage","marriage_duration_years","divorced","n
                          "social_support","shared_hobbies_count","marriage_type",
                          "pre_marital_cohabitation","domestic_violence_history","trust_score")
 
-Description = c("Âge au mariage","Durée du mariage","Divorce (oui/non)","Nombre d’enfants",
+Description <- c("Âge au mariage","Durée du mariage","Divorce (oui/non)","Nombre d’enfants",
                   "Niveau d’éducation","Statut professionnel","Revenu combiné",
                   "Compatibilité religieuse","Correspondance culturelle","Score de communication",
                   "Fréquence des conflits","Style de résolution de conflit","Problèmes de santé mentale",
@@ -58,7 +61,7 @@ Description = c("Âge au mariage","Durée du mariage","Divorce (oui/non)","Nombr
                   "Soutien social","Nombre de hobbies partagés","Type de mariage",
                   "Cohabitation avant mariage","Historique de violence domestique","Score de confiance")
 
-Type = c("Quantitative","Quantitative","Qualitative","Quantitative","Qualitative",
+Type <- c("Quantitative","Quantitative","Qualitative","Quantitative","Qualitative",
            "Qualitative","Quantitative","Qualitative","Qualitative","Quantitative",
            "Quantitative","Qualitative","Qualitative","Quantitative","Qualitative",
            "Qualitative","Quantitative","Quantitative","Qualitative","Qualitative",
@@ -136,6 +139,8 @@ par(mfrow = c(1, 1))
 
 ```
 
+## - Boxplot des données Qualitatives
+
 ```{r 3 Barplot qualitative, echo = FALSE, fig.align='center'}
 # Sélection des variables qualitatives
 vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
@@ -173,3 +178,90 @@ for (i in 0:5) {
 # ✅ Revenir à une seule figure
 par(mfrow = c(1, 1))
 ```
+
+# - Fonction de survie
+
+**Estimateur de la fonction de survie sans données de censure :**
+
+$$
+\hat{S}(t) = \sum^{n}_{i = 1}1_{t_i>t}
+$$
+
+- n = le nombre total d'observation
+- ti = temps jusqu'à l'évènement pour l'individu i
+- $1_{t_i>t}$ = Indicateur qui vaut 1 si l'individu n'a pas encore eu l'évènement à t, 0 sinon.
+
+**Pour introduire la censure, on définit (ici le divorce) :**
+
+$$
+\delta_i =
+\begin{cases}
+1 & \text{si l'événement observé pour i} \\
+0 & \text{si censuré}
+\end{cases}
+$$
+On note $T_{1} \le T_{2} \le \dots \le T_{n}$ les temps triés et $\delta_i$ les évènements correspondants.
+
+Alors l'estimateur de Kaplan-Meier s'écrit :
+
+$$
+\hat{S}(t) = \prod_{T_i \le t,\delta_i = 1}(1-\frac{1}{\sum^{n}_{j = 1}1_{T_j \ge T_i}})
+$$
+
+
+```{r 4 Fonction de survie, echo = FALSE, fig.align='center'}
+## Donnée NON CENSURE
+# Données durée de mariage
+mar_dur <- data.brute$marriage_duration_years
+
+n_dim = length(mar_dur)
+# Durée 
+t_values <- seq(0, max(mar_dur), by = 1)
+
+
+S_estimate <- sapply(t_values, function(t) {
+  sum(mar_dur > t) / n_dim
+})
+
+## Donnée CENSURÉ
+time <- data.brute$marriage_duration_years
+divorce <- data.brute$divorced  # 1 = divorce, 0 = censuré
+# Trier par temps
+sorted_idx <- order(time)
+time_sorted <- time[sorted_idx]
+divorce_sorted <- divorce[sorted_idx]
+n <- length(time_sorted)
+S <- numeric(n)       # stocke la survie à chaque temps
+surv_prob <- 1         # survie initiale = 1
+
+for(i in 1:n){
+  if(divorce_sorted[i] == 1){
+    # nombre à risque : tous les individus >= temps actuel
+    n_risk <- sum(time_sorted >= time_sorted[i])
+    # mise à jour survie
+    surv_prob <- surv_prob * (1 - 1 / n_risk)
+  }
+  S[i] <- surv_prob
+}
+
+
+
+
+
+# Plot initial vide avec limites
+plot(NA, xlim = c(0, max(t_values)), ylim = c(0,1),
+     xlab = "Durée du mariage (années)",
+     ylab = "S(t) = Probabilité de rester marié",
+     main = "Comparaison fonction de survie")
+
+# Ajouter l'escalier
+lines(t_values, S_estimate, type = "s", col = "blue", lwd = 2)
+
+lines(time_sorted, S, type = "s", col = "red", lwd = 2)
+
+# Légende
+legend("topright", legend = c("Sans censure", "Avec censure"),
+       col = c("blue", "red"), lwd = 2)
+```
+
+
