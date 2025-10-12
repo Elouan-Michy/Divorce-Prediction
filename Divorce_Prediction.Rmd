@@ -10,70 +10,166 @@ output:
     theme: cosmo             # 🌈 thème visuel (cosmo, united, journal, etc.)
     highlight: tango         # 🎨 style pour le code
     code_folding: show       # 🔽 possibilité de plier/déplier le code
+    df_print: default
+  
 ---
 
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+```{r package, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+library(knitr)
+library(kableExtra)
+library(dplyr)
+
 ```
 
 # - Introduction
 
-## Observations des données brute
-
-```{r 1 Chargement du fichier}
+```{r 1 Chargement du fichier divorce_df.csv, echo = FALSE}
 data.brute = read.csv("divorce_df.csv")
-str(data.brute)
 ```
-## Analyse des données brutes
-
-**Presentation des variables**
-
-Variables principales :
-
-- `age_at_marriage` = L'âge à laquelle le couple s'est marié (int)
-- `marriage_duration_years` = Temps écoulé à partir du mariage (int)
-- `divorced` = Si le couple est divorcé ou non (int)
-
-Variables métadonnées :
-
-- `num_children` = Nombre d'enfant dans le couple
-- `education_level` = Le niveau d'éducation
-- `employment_status` = Statut du couple
-- `combined_income` = Revenu combiné
-- `religious_compatibility` = Compatibilité religieuse
-- `cultural_background_match` = Correspondance culturelle
-- `communication_score` = Score de communication
-- `conflict_frequency` = Fréquence des conflits
-- `conflict_resolution_style` = Style de résolution des conflits
-- `mental_health_issues` = Problèmes de santé mentale
-- `financial_stress_level` = Niveau de stress financier
-- `infidelity_occurred` = Infidélité survenue
-- `counseling_attended` = A suivi un counseling
-- `social_support` = Soutien social
-- `shared_hobbies_count` = Nombre de hobbies partagés
-- `marriage_type` = Type de mariage
-- `pre_marital_cohabitation` = Cohabitation avant le mariage
-- `domestic_violence_history` = Historique de violence domestique
-- `trust_score` = Score de confiance
+## - Presentation des variables
 
 
-```{r 2 Boxplot Numérique}
-barplot(table(data.brute$age_at_marriage) / sum(table(data.brute$age_at_marriage)))
+```{r echo = FALSE}
+
+# Création du dataframe
+
+Nom_de_la_variable = c("age_at_marriage","marriage_duration_years","divorced","num_children",
+                         "education_level","employment_status","combined_income",
+                         "religious_compatibility","cultural_background_match","communication_score",
+                         "conflict_frequency","conflict_resolution_style","mental_health_issues",
+                         "financial_stress_level","infidelity_occurred","counseling_attended",
+                         "social_support","shared_hobbies_count","marriage_type",
+                         "pre_marital_cohabitation","domestic_violence_history","trust_score")
+
+Description = c("Âge au mariage","Durée du mariage","Divorce (oui/non)","Nombre d’enfants",
+                  "Niveau d’éducation","Statut professionnel","Revenu combiné",
+                  "Compatibilité religieuse","Correspondance culturelle","Score de communication",
+                  "Fréquence des conflits","Style de résolution de conflit","Problèmes de santé mentale",
+                  "Niveau de stress financier","Infidélité survenue","A suivi un counseling",
+                  "Soutien social","Nombre de hobbies partagés","Type de mariage",
+                  "Cohabitation avant mariage","Historique de violence domestique","Score de confiance")
+
+Type = c("Quantitative","Quantitative","Qualitative","Quantitative","Qualitative",
+           "Qualitative","Quantitative","Qualitative","Qualitative","Quantitative",
+           "Quantitative","Qualitative","Qualitative","Quantitative","Qualitative",
+           "Qualitative","Quantitative","Quantitative","Qualitative","Qualitative",
+           "Qualitative","Quantitative")
+
+Sous_type = c("Discrète","Discrète","Binaire","Discrète","Ordinale",
+                "Nominale","Continue","Nominale","Binaire","Continue",
+                "Discrète","Nominale","Binaire","Continue","Binaire",
+                "Binaire","Continue","Discrète","Nominale","Binaire",
+                "Binaire","Continue")
+
+variables <- data.frame(
+  Nom_de_la_variable,
+  Description,
+  Type,
+  Sous_type,
+  stringsAsFactors = FALSE
+)
+
+# Fonction de coloration conditionnelle
+variables <- variables %>%
+  mutate(
+    Type = cell_spec(Type,
+                     background = ifelse(Type=="Quantitative","#5DADE2","#58D68D"),
+                     color="black", bold=TRUE, escape=FALSE),
+    Sous_type = cell_spec(Sous_type,
+                          background = case_when(
+                            Sous_type == "Binaire"   ~ "#A3E4D7",  # vert menthe
+                            Sous_type == "Discrète"  ~ "#85C1E9",  # bleu clair
+                            Sous_type == "Ordinale"  ~ "#F7DC6F",  # jaune doré
+                            Sous_type == "Nominale"  ~ "#F5B041",  # orange doux
+                            Sous_type == "Continue"  ~ "#E59866"   # rouge rosé
+                          ),
+                          color = "black",
+                          escape = FALSE)
+  )
+
+# Affichage du tableau
+kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec code couleur") %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width=FALSE) %>%
+  column_spec(1, bold=TRUE, color="black", background="#D6EAF8") %>%    # colonne Nom_de_la_variable
+  column_spec(2, width="8cm", bold=TRUE, background="#EBF5FB") %>%       # colonne Description
+  row_spec(0, bold=TRUE, color="white", background="#2C3E50")            # header
+```
+
+## - Boxplot des données Quantitative
+
+
+```{r 2 Boxplot Numérique, echo = FALSE, fig.align='center'}
+# Prendre que les variables quantitatives
+vars_quanti <- Nom_de_la_variable[Type == "Quantitative"]
+
+for (i in 0:4) {
+  # Grille 2 lignes × 5 colonnes
+  par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+  for (j in 1:2) {
+    var_name <- vars_quanti[2*i+j]
+    boxplot(
+      data.brute[[var_name]],
+      main = var_name,
+      col = "#5DADE2",
+      boxwex = 0.5,
+      outline = TRUE,
+      cex.main = 0.9,
+      cex.axis = 0.9,
+      las = 1,
+      frame.plot = FALSE
+    )
+    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+    }
+}
+par(mfrow = c(1, 1))
+
+
 
 ```
 
-```{r 3 Boxplot Numérique}
-# Nom des colonnes
-named_columns <- colnames(data.brute)
-type_columns <- sapply(data.brute, class)
+```{r 3 Barplot qualitative, echo = FALSE, fig.align='center'}
+# Sélection des variables qualitatives
+vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
 
+# Grille 2 lignes × 5 colonnes
+par(mfrow = c(2, 6), mar = c(6, 4, 3, 1)) 
 
-for (name in named_columns) {
-  if (type_columns[name] == "integer"){
-  boxplot(data.brute[[name]], main = name)
+for (i in 0:5) {
+  # Grille 2 lignes × 5 colonnes
+  par(mfrow = c(1, 2), mar = c(6, 4, 3, 1))
+  for (j in 1:2) {
+  var_name <- vars_quali[2*i+j]
+  # Comptage des modalités
+  counts <- table(data.brute[[var_name]])
+  
+  # Titre avec retour à la ligne si besoin
+  main_title <- gsub("_", "\n", var_name)
+  
+  barplot(
+    counts,
+    main = main_title,
+    col = "#58D68D",
+    border = "gray25",
+    cex.main = 0.9,
+    cex.axis = 0.8,
+    cex.names = 0.7,       # taille des noms des modalités
+    las = 2,               # rotation des labels pour qu’ils soient lisibles
+    frame.plot = FALSE
+  )
+  grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
   }
 }
 
-```
 
+# ✅ Revenir à une seule figure
+par(mfrow = c(1, 1))
+```
