@@ -23,6 +23,13 @@ knitr::opts_chunk$set(
 )
 ```
 
+
+```{r installing, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+#install.packages("knitr")
+#install.packages("kableExtra")
+#install.packages("dplyr")
+```
+
 ```{r package, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(knitr)
 library(kableExtra)
@@ -179,7 +186,31 @@ for (i in 0:5) {
 par(mfrow = c(1, 1))
 ```
 
-# - Fonction de survie
+# - Analyse de survie
+```{r tableaeu des fonctions de survies, echo = FALSE, fig.align='center'}
+# Créer le tableau
+
+fonctions <- c("S(t)", "H(t)", "h(t)")
+premier_temps <- c("Probabilité que le mariage dure ≥ t",
+                   "Risque cumulé de divorce jusqu’à t",
+                   "Risque instantané de divorce à t")
+second_temps <- c("Probabilité de rester marié si marié à l’âge t",
+                  "Risque cumulé de divorce selon âge au mariage ≤ t",
+                  "Risque instantané de divorce pour un âge de mariage t")
+
+tableau <- data.frame(Fonction = fonctions,
+                      marriage_duration_years = premier_temps,
+                      age_at_marriage = second_temps,
+                      stringsAsFactors = FALSE)
+
+# Affichage avec kable
+kable(tableau, "html", caption = "📊 Interprétation des fonctions de survie") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE, background = "#D6EAF8") %>%
+  column_spec(2, background = "#EBF5FB") %>%
+  column_spec(3, background = "#FDEBD0") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
+```
 
 **Estimateur de la fonction de survie sans données de censure :**
 
@@ -211,12 +242,14 @@ $$
 
 ```{r 4 Fonction de survie, echo = FALSE, fig.align='center'}
 ## Donnée NON CENSURE
+variable_time <- data.brute$marriage_duration_years
+
 # Données durée de mariage
-mar_dur <- data.brute$marriage_duration_years
+mar_dur <- variable_time
 
 n_dim = length(mar_dur)
 # Durée 
-t_values <- seq(0, max(mar_dur), by = 1)
+t_values <- seq(1, max(mar_dur), by = 1)
 
 
 S_estimate <- sapply(t_values, function(t) {
@@ -224,7 +257,7 @@ S_estimate <- sapply(t_values, function(t) {
 })
 
 ## Donnée CENSURÉ
-time <- data.brute$marriage_duration_years
+time <- variable_time
 divorce <- data.brute$divorced  # 1 = divorce, 0 = censuré
 # Trier par temps
 sorted_idx <- order(time)
@@ -249,7 +282,7 @@ for(i in 1:n){
 
 
 # Plot initial vide avec limites
-plot(NA, xlim = c(0, max(t_values)), ylim = c(0,1),
+plot(NA, xlim = c(min(t_values), max(t_values)), ylim = c(0,1),
      xlab = "Durée du mariage (années)",
      ylab = "S(t) = Probabilité de rester marié",
      main = "Comparaison fonction de survie")
@@ -262,6 +295,65 @@ lines(time_sorted, S, type = "s", col = "red", lwd = 2)
 # Légende
 legend("topright", legend = c("Sans censure", "Avec censure"),
        col = c("blue", "red"), lwd = 2)
+```
+
+```{r 5 Fonction de Risque Cumulée, echo = FALSE, fig.align='center'}
+# Plot initial vide avec limites
+plot(NA, xlim = c(1, max(t_values)), ylim = c(0,5),
+     xlab = "Durée du mariage (années)",
+     ylab = "H(t) = Risque cumulée",
+     main = "Comparaison fonction de risque cumulé")
+
+H_estimate = -log(S_estimate)
+H = -log(S)
+
+# Ajouter l'escalier
+lines(t_values, H_estimate, type = "s", col = "blue", lwd = 2)
+
+lines(time_sorted, H, type = "s", col = "red", lwd = 2)
+
+# Légende
+legend("topleft", legend = c("Sans censure", "Avec censure"),
+       col = c("blue", "red"), lwd = 2)
+
+```
+
+```{r 6 Fonction de risque instantanée, echo = FALSE, fig.align='center'}
+library(survival)
+
+surv_obj <- Surv(time = data.brute$marriage_duration_years,
+                 event = data.brute$divorced)
+cox_model <- coxph(surv_obj ~ 1, data = data.brute)
+
+
+fit <- survfit(cox_model)
+
+# temps
+time <- fit$time
+# survie
+S <- fit$surv
+
+# hazard approximatif à chaque intervalle
+hazard <- -diff(S) / S[-length(S)]
+
+# associer aux temps moyens des intervalles
+time_hazard <- time[-1]
+
+# tracer
+plot(time_hazard, hazard, type = "s",
+     xlab = "Durée du mariage (années)",
+     ylab = "Risque instantané",
+     main = "Fonction de risque estimée à partir de Cox",
+     lwd = 2, col = "red")
+grid()
+
+smooth_h <- smooth.spline(time_hazard, hazard)
+plot(smooth_h, type="l", lwd=2, col="blue",
+     xlab="Durée du mariage (années)",
+     ylab="Risque instantané",
+     main="Fonction de risque lissée à partir de Cox")
+grid()
+
 ```
 
 
