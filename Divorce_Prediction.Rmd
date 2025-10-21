@@ -39,14 +39,24 @@ library(dplyr)
 
 # - Introduction
 
+Le **mariage** est souvent perçu comme l'union d'une union durable, symbolisant l'engagement et la stabilité dans la vie d'un couple. Pourtant, dans de nombreux contextes, les mariages connaissent des trajectoires variées : certains dure toute une vie, d'autre se terminent plus rapidement par un divorce. Ce phénomène est particulièrement intéressant à observer lorsque celui-ci repose sur un mariage arrangé, qui repose sur des dynamiques sociales et familiales différentes de celles d'un mariage romantique. Ces unions peuvent parfois révéler des différences profondes entre les partenaires ou faire émerger des schémas de relations complexes, voire toxiques.
+
+Dans le cadre de cette étude, nous utilisons une base de données synthétique portant sur des mariages arrangés afin d'examiner la durée de ces unions et les facteurs susceptibles d'influencer leur stabilités. **L'Analyse de Survie** constitue ici un outil pertinent pour modéliser le temps écoulé entre le mariage et le divorce afin de mieux comprendre la distribution temporelle des ruptures.
+
+
+
+
+
+## - Presentation des variables
+
 ```{r 1 Chargement du fichier divorce_df.csv, echo = FALSE}
 data.brute <- read.csv("divorce_df.csv")
 dimension <- dim(data.brute)
 n <- dimension[1]
 p <- dimension[2]
 ```
-## - Presentation des variables
 
+Notre base de données comporte 5000 observations pour 22 variables. Sur les 22 variables, nous retrouvons près de 10 variables quantitatives pour 12 qualitatives. De plus, notre base de données ne comporte aucune valeurs manquantes, ce qui réduit la complexité des prétraitements des données et permet de déterminer directement l'analyse exploratoire. Le tableau ci-dessous synthétise la présentation ainsi que les types et sous-type de variables.
 
 ```{r echo = FALSE}
 
@@ -114,7 +124,13 @@ kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec 
   row_spec(0, bold=TRUE, color="white", background="#2C3E50")            # header
 ```
 
-## - Boxplot des données Quantitative
+# - Analyse exploratoire
+
+Dans cette section nous procéderons à une grande...
+
+## - Boxplot des données Quantitatives & Histogrammes
+
+
 
 
 ```{r 2 Boxplot Numérique, echo = FALSE, fig.align='center'}
@@ -137,7 +153,20 @@ for (i in 0:4) {
       las = 1,
       frame.plot = FALSE
     )
+    hist(
+      data.brute[[var_name]],
+      main = var_name,
+      col = "#5DADE2",
+      prob = TRUE,            # Pour afficher la densité et non la fréquence
+      cex.main = 0.9,
+      cex.axis = 0.9,
+      las = 1,
+      frame.plot = FALSE,
+      border = "white"
+    )
     grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+    lines(density(data.brute[[var_name]]), col = "red", lwd = 2)
+
     }
 }
 par(mfrow = c(1, 1))
@@ -146,7 +175,7 @@ par(mfrow = c(1, 1))
 
 ```
 
-## - Boxplot des données Qualitatives
+## - Histogrammes des données Qualitatives
 
 ```{r 3 Barplot qualitative, echo = FALSE, fig.align='center'}
 # Sélection des variables qualitatives
@@ -187,10 +216,18 @@ par(mfrow = c(1, 1))
 ```
 
 # - Analyse de survie
+
+Notre base de données comporte deux variables temporelles intéressantes à étudier :
+
+- `marriage_duration_years` : Mesure la **Durée du mariage** de l'individu
+- `age_at_marriage` : Mesure **l'âge** où l'individu s'est marié
+
+Nous verrons donc une double analyse entre sur la 
+
 ```{r tableaeu des fonctions de survies, echo = FALSE, fig.align='center'}
 # Créer le tableau
 
-fonctions <- c("S(t)", "H(t)", "h(t)")
+fonctions <- c("$S(t)$", "$H(t)$", "$h(t)$")
 premier_temps <- c("Probabilité que le mariage dure ≥ t",
                    "Risque cumulé de divorce jusqu’à t",
                    "Risque instantané de divorce à t")
@@ -211,6 +248,8 @@ kable(tableau, "html", caption = "📊 Interprétation des fonctions de survie")
   column_spec(3, background = "#FDEBD0") %>%
   row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
 ```
+
+## - Fonction de survie S(t)
 
 **Estimateur de la fonction de survie sans données de censure :**
 
@@ -239,6 +278,9 @@ $$
 \hat{S}(t) = \prod_{T_i \le t,\delta_i = 1}(1-\frac{1}{\sum^{n}_{j = 1}1_{T_j \ge T_i}})
 $$
 
+## - Analyse de la Durée de marriage avant divorce 
+
+**durée de mariage**
 
 ```{r 4 Fonction de survie, echo = FALSE, fig.align='center'}
 ## Donnée NON CENSURE
@@ -278,7 +320,59 @@ for(i in 1:n){
 }
 
 
+# Plot initial vide avec limites
+plot(NA, xlim = c(min(t_values), max(t_values)), ylim = c(0,1),
+     xlab = "Durée du mariage (années)",
+     ylab = "S(t) = Probabilité de rester marié",
+     main = "Comparaison fonction de survie")
 
+# Ajouter l'escalier
+lines(t_values, S_estimate, type = "s", col = "blue", lwd = 2)
+
+lines(time_sorted, S, type = "s", col = "red", lwd = 2)
+
+# Légende
+legend("topright", legend = c("Sans censure", "Avec censure"),
+       col = c("blue", "red"), lwd = 2)
+```
+
+**âge du début de mariage**
+```{r 5 Fonction de survie, echo = FALSE, fig.align='center'}
+## Donnée NON CENSURE
+variable_time <- data.brute$age_at_marriage
+
+# Données durée de mariage
+mar_dur <- variable_time
+
+n_dim = length(mar_dur)
+# Durée 
+t_values <- seq(min(mar_dur), max(mar_dur), by = 1)
+
+
+S_estimate <- sapply(t_values, function(t) {
+  sum(mar_dur > t) / n_dim
+})
+
+## Donnée CENSURÉ
+time <- variable_time
+divorce <- data.brute$divorced  # 1 = divorce, 0 = censuré
+# Trier par temps
+sorted_idx <- order(time)
+time_sorted <- time[sorted_idx]
+divorce_sorted <- divorce[sorted_idx]
+n <- length(time_sorted)
+S <- numeric(n)       # stocke la survie à chaque temps
+surv_prob <- 1         # survie initiale = 1
+
+for(i in 1:n){
+  if(divorce_sorted[i] == 1){
+    # nombre à risque : tous les individus >= temps actuel
+    n_risk <- sum(time_sorted >= time_sorted[i])
+    # mise à jour survie
+    surv_prob <- surv_prob * (1 - 1 / n_risk)
+  }
+  S[i] <- surv_prob
+}
 
 
 # Plot initial vide avec limites
@@ -297,7 +391,8 @@ legend("topright", legend = c("Sans censure", "Avec censure"),
        col = c("blue", "red"), lwd = 2)
 ```
 
-```{r 5 Fonction de Risque Cumulée, echo = FALSE, fig.align='center'}
+
+```{r 6 Fonction de Risque Cumulée, echo = FALSE, fig.align='center'}
 # Plot initial vide avec limites
 plot(NA, xlim = c(1, max(t_values)), ylim = c(0,5),
      xlab = "Durée du mariage (années)",
@@ -318,7 +413,7 @@ legend("topleft", legend = c("Sans censure", "Avec censure"),
 
 ```
 
-```{r 6 Fonction de risque instantanée, echo = FALSE, fig.align='center'}
+```{r 7 Fonction de risque instantanée, echo = FALSE, fig.align='center'}
 library(survival)
 
 surv_obj <- Surv(time = data.brute$marriage_duration_years,
@@ -356,4 +451,5 @@ grid()
 
 ```
 
+## - Analyse de la Durée de rester marié avant le disvorce à l'âge t
 
