@@ -14,6 +14,8 @@ output:
   
 ---
 
+lien de la base : https://www.kaggle.com/datasets/vanpatangan/divorce-prediction
+
 
 ```{r setup, echo = FALSE}
 knitr::opts_chunk$set(
@@ -28,13 +30,18 @@ knitr::opts_chunk$set(
 #install.packages("knitr")
 #install.packages("kableExtra")
 #install.packages("dplyr")
+#install.packages("survival")
+#install.packages("survminer")
 ```
 
 ```{r package, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 library(knitr)
 library(kableExtra)
 library(dplyr)
-
+library(survival)
+library(survminer)
+library(gridExtra)
+library(ggplot2)
 ```
 
 # - Introduction
@@ -126,7 +133,6 @@ kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec 
 
 # - Analyse exploratoire
 
-Dans cette section nous procéderons à une grande...
 
 ## - Boxplot des données Quantitatives & Histogrammes
 
@@ -225,231 +231,244 @@ Notre base de données comporte deux variables temporelles intéressantes à ét
 Nous verrons donc une double analyse entre sur la 
 
 ```{r tableaeu des fonctions de survies, echo = FALSE, fig.align='center'}
-# Créer le tableau
 
+
+# Définition des colonnes
 fonctions <- c("$S(t)$", "$H(t)$", "$h(t)$")
-premier_temps <- c("Probabilité que le mariage dure ≥ t",
-                   "Risque cumulé de divorce jusqu’à t",
-                   "Risque instantané de divorce à t")
-second_temps <- c("Probabilité de rester marié si marié à l’âge t",
-                  "Risque cumulé de divorce selon âge au mariage ≤ t",
-                  "Risque instantané de divorce pour un âge de mariage t")
 
-tableau <- data.frame(Fonction = fonctions,
-                      marriage_duration_years = premier_temps,
-                      age_at_marriage = second_temps,
-                      stringsAsFactors = FALSE)
+definitions <- c(
+  "$S(t) = P(T \\geq t)$",
+  "$H(t) = \\int_0^t h(u)\\,du = -\\ln S(t)$",
+  "$h(t) = \\dfrac{f(t)}{S(t)} = -\\dfrac{S'(t)}{S(t)}$"
+)
+
+premier_temps <- c(
+  "Probabilité que le mariage dure ≥ t",
+  "Risque cumulé de divorce jusqu’à t",
+  "Risque instantané de divorce à t"
+)
+
+second_temps <- c(
+  "Probabilité de rester marié si marié à l’âge t",
+  "Risque cumulé de divorce selon âge au mariage ≤ t",
+  "Risque instantané de divorce pour un âge de mariage t"
+)
+
+# Création du tableau
+tableau <- data.frame(
+  Fonction = fonctions,
+  Définition = definitions,
+  Durée_du_mariage = premier_temps,
+  Âge_au_mariage = second_temps,
+  stringsAsFactors = FALSE
+)
 
 # Affichage avec kable
-kable(tableau, "html", caption = "📊 Interprétation des fonctions de survie") %>%
-  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+kable(tableau, "html", caption = "📊 Interprétation et définitions des fonctions de survie") %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE
+  ) %>%
   column_spec(1, bold = TRUE, background = "#D6EAF8") %>%
   column_spec(2, background = "#EBF5FB") %>%
   column_spec(3, background = "#FDEBD0") %>%
+  column_spec(4, background = "#FCF3CF") %>%
   row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
+
 ```
 
 ## - Fonction de survie S(t)
 
-**Estimateur de la fonction de survie sans données de censure :**
+### Estimateur sans données de censure
+
+**Estimateur empirique de la fonction de survie :**
 
 $$
-\hat{S}(t) = \sum^{n}_{i = 1}1_{t_i>t}
+\hat{S}(t) = \frac{1}{n} \sum_{i = 1}^{n} 1_{t_i > t}
 $$
 
-- n = le nombre total d'observation
-- ti = temps jusqu'à l'évènement pour l'individu i
-- $1_{t_i>t}$ = Indicateur qui vaut 1 si l'individu n'a pas encore eu l'évènement à t, 0 sinon.
+- \( n \) = nombre total d'observations  
+- \( t_i \) = temps jusqu’à l’événement pour l’individu \( i \)  
+- \( 1_{t_i > t} \) = indicateur qui vaut 1 si l’individu n’a pas encore eu l’événement à \( t \), 0 sinon  
 
-**Pour introduire la censure, on définit (ici le divorce) :**
+Cet estimateur correspond simplement à la **proportion d’individus encore “en vie”** (ou mariés) au temps \( t \).  
+Il suppose qu’il **n’y a aucune donnée censurée**, c’est-à-dire que tous les individus ont eu l’événement observé.
+
+---
+
+### Estimateur avec censure (Kaplan-Meier)
+
+Lorsque certains individus quittent l’étude avant l’événement (par exemple, encore mariés à la fin de l’observation),  
+on introduit la **variable de censure** :
 
 $$
 \delta_i =
 \begin{cases}
-1 & \text{si l'événement observé pour i} \\
-0 & \text{si censuré}
+1 & \text{si l'événement (divorce) est observé pour } i \\
+0 & \text{si l'observation est censurée}
 \end{cases}
 $$
-On note $T_{1} \le T_{2} \le \dots \le T_{n}$ les temps triés et $\delta_i$ les évènements correspondants.
 
-Alors l'estimateur de Kaplan-Meier s'écrit :
+On note \( T_{1} \le T_{2} \le \dots \le T_{n} \) les temps d’observation triés et \( \delta_i \) les événements correspondants.
+
+**Alors, l’estimateur de Kaplan-Meier s’écrit :**
 
 $$
-\hat{S}(t) = \prod_{T_i \le t,\delta_i = 1}(1-\frac{1}{\sum^{n}_{j = 1}1_{T_j \ge T_i}})
+\hat{S}(t) = \prod_{T_i \le t,\, \delta_i = 1} 
+\left( 1 - \frac{1}{\sum_{j = 1}^{n} 1_{T_j \ge T_i}} \right)
 $$
+
+ou, de manière équivalente, en notant \( d_i \) le nombre d’événements à \( T_i \)  
+et \( n_i \) le nombre d’individus “à risque” juste avant ce temps :
+
+$$
+\hat{S}(t) = \prod_{T_i \le t} 
+\left( 1 - \frac{d_i}{n_i} \right)
+$$
+
+---
 
 ## - Analyse de la Durée de marriage avant divorce 
 
 **durée de mariage**
 
 ```{r 4 Fonction de survie, echo = FALSE, fig.align='center'}
-## Donnée NON CENSURE
-variable_time <- data.brute$marriage_duration_years
+# --- Données
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
 
-# Données durée de mariage
-mar_dur <- variable_time
+# --- 1️⃣ SANS CENSURE
+surv_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
 
-n_dim = length(mar_dur)
-# Durée 
-t_values <- seq(1, max(mar_dur), by = 1)
+# --- 2️⃣ AVEC CENSURE
+surv_censor <- survfit(Surv(time, event) ~ 1)
 
-
-S_estimate <- sapply(t_values, function(t) {
-  sum(mar_dur > t) / n_dim
-})
-
-## Donnée CENSURÉ
-time <- variable_time
-divorce <- data.brute$divorced  # 1 = divorce, 0 = censuré
-# Trier par temps
-sorted_idx <- order(time)
-time_sorted <- time[sorted_idx]
-divorce_sorted <- divorce[sorted_idx]
-n <- length(time_sorted)
-S <- numeric(n)       # stocke la survie à chaque temps
-surv_prob <- 1         # survie initiale = 1
-
-for(i in 1:n){
-  if(divorce_sorted[i] == 1){
-    # nombre à risque : tous les individus >= temps actuel
-    n_risk <- sum(time_sorted >= time_sorted[i])
-    # mise à jour survie
-    surv_prob <- surv_prob * (1 - 1 / n_risk)
-  }
-  S[i] <- surv_prob
-}
-
-
-# Plot initial vide avec limites
-plot(NA, xlim = c(min(t_values), max(t_values)), ylim = c(0,1),
-     xlab = "Durée du mariage (années)",
-     ylab = "S(t) = Probabilité de rester marié",
-     main = "Comparaison fonction de survie")
-
-# Ajouter l'escalier
-lines(t_values, S_estimate, type = "s", col = "blue", lwd = 2)
-
-lines(time_sorted, S, type = "s", col = "red", lwd = 2)
-
-# Légende
-legend("topright", legend = c("Sans censure", "Avec censure"),
-       col = c("blue", "red"), lwd = 2)
+# --- 3️⃣ PLOT COMPARATIF avec intervalle de confiance
+ggsurvplot_combine(
+  list("Sans censure" = surv_no_censor, "Avec censure" = surv_censor),
+  combine = TRUE,
+  conf.int = TRUE,                     # activer l'intervalle de confiance
+  conf.int.alpha = 0.2,                # transparence de la bande
+  legend.title = "Type de données",
+  legend.labs = c("Sans censure", "Avec censure"),
+  palette = c("blue", "red"),
+  xlab = "Durée du mariage (années)",
+  ylab = "S(t) = Probabilité de rester marié",
+  title = "Comparaison des fonctions de survie : sans et avec censure"
+)
 ```
 
-**âge du début de mariage**
-```{r 5 Fonction de survie, echo = FALSE, fig.align='center'}
-## Donnée NON CENSURE
-variable_time <- data.brute$age_at_marriage
+```{r 6.1, echo = FALSE, fig.align='center'}
+# Création du tableau
+risk_methods <- data.frame(
+  Méthode = c("Kaplan-Meier simple", "Nelson-Aalen", "Cox avec covariables (Breslow)"),
+  Formule = c(
+    "$H(t) = -\\ln \\hat{S}(t)$",
+    "$\\hat{H}_{NA}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{n_i}$",
+    "$\\hat{H}_{Breslow}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{\\sum_{j \\in R(t_i)} e^{\\beta^T X_j}}$"
+  ),
+  Description = c(
+    "Transformation directe de la fonction de survie Kaplan-Meier. Non paramétrique et simple.",
+    "Estimateur non paramétrique basé sur les événements observés et le nombre de sujets à risque.",
+    "Risque cumulatif estimé à partir d’un modèle de Cox avec covariables. Breslow gère les événements multiples au même temps."
+  ),
+  stringsAsFactors = FALSE
+)
 
-# Données durée de mariage
-mar_dur <- variable_time
-
-n_dim = length(mar_dur)
-# Durée 
-t_values <- seq(min(mar_dur), max(mar_dur), by = 1)
-
-
-S_estimate <- sapply(t_values, function(t) {
-  sum(mar_dur > t) / n_dim
-})
-
-## Donnée CENSURÉ
-time <- variable_time
-divorce <- data.brute$divorced  # 1 = divorce, 0 = censuré
-# Trier par temps
-sorted_idx <- order(time)
-time_sorted <- time[sorted_idx]
-divorce_sorted <- divorce[sorted_idx]
-n <- length(time_sorted)
-S <- numeric(n)       # stocke la survie à chaque temps
-surv_prob <- 1         # survie initiale = 1
-
-for(i in 1:n){
-  if(divorce_sorted[i] == 1){
-    # nombre à risque : tous les individus >= temps actuel
-    n_risk <- sum(time_sorted >= time_sorted[i])
-    # mise à jour survie
-    surv_prob <- surv_prob * (1 - 1 / n_risk)
-  }
-  S[i] <- surv_prob
-}
-
-
-# Plot initial vide avec limites
-plot(NA, xlim = c(min(t_values), max(t_values)), ylim = c(0,1),
-     xlab = "Durée du mariage (années)",
-     ylab = "S(t) = Probabilité de rester marié",
-     main = "Comparaison fonction de survie")
-
-# Ajouter l'escalier
-lines(t_values, S_estimate, type = "s", col = "blue", lwd = 2)
-
-lines(time_sorted, S, type = "s", col = "red", lwd = 2)
-
-# Légende
-legend("topright", legend = c("Sans censure", "Avec censure"),
-       col = c("blue", "red"), lwd = 2)
+# Affichage avec kable et style
+kable(risk_methods, "html", escape = FALSE, caption = "📊 Méthodes d’estimation du risque cumulatif") %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE, color = "black", background = "#D6EAF8") %>%
+  column_spec(2, width = "6cm") %>%
+  column_spec(3, width = "8cm") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
 ```
-
 
 ```{r 6 Fonction de Risque Cumulée, echo = FALSE, fig.align='center'}
-# Plot initial vide avec limites
-plot(NA, xlim = c(1, max(t_values)), ylim = c(0,5),
-     xlab = "Durée du mariage (années)",
-     ylab = "H(t) = Risque cumulée",
-     main = "Comparaison fonction de risque cumulé")
+# --- Données
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
 
-H_estimate = -log(S_estimate)
-H = -log(S)
+# --- 1️⃣ Kaplan-Meier
+km_fit <- survfit(Surv(time, event) ~ 1)
+df_km <- data.frame(
+  time = km_fit$time,
+  H = -log(km_fit$surv)
+)
 
-# Ajouter l'escalier
-lines(t_values, H_estimate, type = "s", col = "blue", lwd = 2)
+# --- 2️⃣ Nelson-Aalen
+# H(t) = sum(d_i / n_i)
+na_fit <- survfit(Surv(time, event) ~ 1, type="fleming")  # Fleming-Harrington = Nelson-Aalen
+df_na <- data.frame(
+  time = na_fit$time,
+  H = na_fit$cumhaz
+)
 
-lines(time_sorted, H, type = "s", col = "red", lwd = 2)
+# --- Fusionner pour ggplot
+df_all <- bind_rows(
+  df_km %>% mutate(Method = "Kaplan-Meier"),
+  df_na %>% mutate(Method = "Nelson-Aalen")
+)
 
-# Légende
-legend("topleft", legend = c("Sans censure", "Avec censure"),
-       col = c("blue", "red"), lwd = 2)
+# --- Plot
+ggplot(df_all, aes(x = time, y = H, color = Method)) +
+  geom_step(size = 1.2) +
+  scale_color_manual(values = c("blue","red")) +
+  labs(
+    title = "Comparaison des fonctions de risque cumulée",
+    x = "Durée du mariage (années)",
+    y = "H(t) = Risque cumulatif",
+    color = "Méthode"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    legend.position = "top"
+  )
 
 ```
+
+
 
 ```{r 7 Fonction de risque instantanée, echo = FALSE, fig.align='center'}
-library(survival)
 
-surv_obj <- Surv(time = data.brute$marriage_duration_years,
-                 event = data.brute$divorced)
-cox_model <- coxph(surv_obj ~ 1, data = data.brute)
+# --- Données
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
 
+# --- Hazard avec censure
+fit_censor <- survfit(Surv(time, event) ~ 1)
+H_censor <- -log(fit_censor$surv)
+time_censor <- fit_censor$time[-1]
+hazard_censor <- diff(H_censor) / diff(fit_censor$time)
 
-fit <- survfit(cox_model)
+# --- Hazard sans censure
+fit_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
+H_no_censor <- -log(fit_no_censor$surv)
+time_no_censor <- fit_no_censor$time[-1]
+hazard_no_censor <- diff(H_no_censor) / diff(fit_no_censor$time)
 
-# temps
-time <- fit$time
-# survie
-S <- fit$surv
+# --- Préparer data.frame pour ggplot
+df_hazard <- rbind(
+  data.frame(time = time_censor, hazard = hazard_censor, type = "Avec censure"),
+  data.frame(time = time_no_censor, hazard = hazard_no_censor, type = "Sans censure")
+)
 
-# hazard approximatif à chaque intervalle
-hazard <- -diff(S) / S[-length(S)]
-
-# associer aux temps moyens des intervalles
-time_hazard <- time[-1]
-
-# tracer
-plot(time_hazard, hazard, type = "s",
-     xlab = "Durée du mariage (années)",
-     ylab = "Risque instantané",
-     main = "Fonction de risque estimée à partir de Cox",
-     lwd = 2, col = "red")
-grid()
-
-smooth_h <- smooth.spline(time_hazard, hazard)
-plot(smooth_h, type="l", lwd=2, col="blue",
-     xlab="Durée du mariage (années)",
-     ylab="Risque instantané",
-     main="Fonction de risque lissée à partir de Cox")
-grid()
-
+# --- Plot ggplot2 escalier (step)
+ggplot(df_hazard, aes(x = time, y = hazard, color = type)) +
+  geom_step(size = 1.5) +                           # courbes en escalier
+  scale_color_manual(values = c("red","blue")) +   # couleurs cohérentes
+  labs(title = "Fonction de risque instantanée",
+       x = "Durée du mariage (années)",
+       y = "Risque instantané",
+       color = "Type de données") +
+  theme_minimal(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "top")
 ```
 
+
+
+
 ## - Analyse de la Durée de rester marié avant le disvorce à l'âge t
-test git 
+
