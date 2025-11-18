@@ -417,7 +417,7 @@ ggsurvplot_combine(
     )
 )
 ```
-
+# Modèle de Cov univarié
 
 ## Modèle de Cox sur le niveau d'éducation
 
@@ -458,7 +458,7 @@ ggsurvplot(
 
 ## Modèle de Cox selon le problème de santé mental
 
-```{r education_level, echo=FALSE, fig.align='center'}
+```{r mental_health_issues, echo=FALSE, fig.align='center'}
 # Assurer que education_level est bien un facteur avec des niveaux lisibles
 data.brute$mental_health_issues <- factor(data.brute$mental_health_issues,
                                      levels = unique(data.brute$mental_health_issues))
@@ -494,14 +494,111 @@ ggsurvplot(
 ```
 
 
+## Modèle de Cox selon l'infidélité
 
+```{r infidelity_occurred, echo=FALSE, fig.align='center'}
+# Assurer que education_level est bien un facteur avec des niveaux lisibles
+data.brute$infidelity_occurred <- factor(data.brute$infidelity_occurred,
+                                     levels = unique(data.brute$infidelity_occurred))
+
+# Cox univarié
+cox_edu <- coxph(Surv(marriage_duration_years, divorced) ~ infidelity_occurred, 
+                 data = data.brute)
+
+# Préparer une data.frame avec chaque niveau pour la prédiction
+newdata_edu <- data.frame(infidelity_occurred = levels(data.brute$infidelity_occurred))
+
+# Estimation de la survie par niveau
+surv_fit_edu <- survfit(cox_edu, newdata = newdata_edu)
+
+# Palette automatique adaptée au nombre de groupes
+n_levels <- length(levels(data.brute$infidelity_occurred))
+colors <- c("red", "blue")  # 3 groupes
+
+# Plot avec survminer
+ggsurvplot(
+  surv_fit_edu,
+  data = data.brute,
+  conf.int = FALSE,
+  legend.title = "",
+  legend.labs = levels(data.brute$infidelity_occurred),  # <-- légende lisible
+  xlab = "Durée du mariage (années)",
+  ylab = "Probabilité de rester marié",
+  palette = colors,
+  surv.median.line = "hv", # ligne horizontale/verticale pour la médiane
+  ggtheme = theme_minimal(base_size = 14)
+)
+
+```
+
+## Modèle de Cox selon le type de mariage
+
+```{r marriage_type, echo=FALSE, fig.align='center'}
+# Assurer que education_level est bien un facteur avec des niveaux lisibles
+data.brute$marriage_type <- factor(data.brute$marriage_type,
+                                     levels = unique(data.brute$marriage_type))
+
+# Cox univarié
+cox_edu <- coxph(Surv(marriage_duration_years, divorced) ~ marriage_type, 
+                 data = data.brute)
+
+# Préparer une data.frame avec chaque niveau pour la prédiction
+newdata_edu <- data.frame(marriage_type = levels(data.brute$marriage_type))
+
+# Estimation de la survie par niveau
+surv_fit_edu <- survfit(cox_edu, newdata = newdata_edu)
+
+# Palette automatique adaptée au nombre de groupes
+n_levels <- length(levels(data.brute$marriage_type))
+colors <- c("red", "blue", "green")  # 3 groupes
+
+# Plot avec survminer
+ggsurvplot(
+  surv_fit_edu,
+  data = data.brute,
+  conf.int = FALSE,
+  legend.title = "",
+  legend.labs = levels(data.brute$marriage_type),  # <-- légende lisible
+  xlab = "Durée du mariage (années)",
+  ylab = "Probabilité de rester marié",
+  palette = colors,
+  surv.median.line = "hv", # ligne horizontale/verticale pour la médiane
+  ggtheme = theme_minimal(base_size = 14)
+)
+
+```
+
+# Modèle de Cox multivarié
+
+```{r Modele Cox multivarié, echo = FALSE, fig.align='center'}
+library(MASS)
+
+# Modèle complet (tout inclure au départ)
+full_model <- coxph(Surv(time, event) ~ 
+                     marriage_type + infidelity_occurred + mental_health_issues + education_level +
+                     employment_status + combined_income + religious_compatibility + cultural_background_match +
+                     communication_score + conflict_frequency + conflict_resolution_style +
+                     financial_stress_level + counseling_attended + social_support +
+                     shared_hobbies_count + pre_marital_cohabitation + domestic_violence_history + trust_score,
+                     data = data.brute)
+
+
+# Modèle vide (intercept seulement)
+null_model <- coxph(Surv(time, event) ~ 1, data = data.brute)
+
+# Sélection stepwise (AIC par défaut)
+best_model <- stepAIC(null_model, scope = list(lower=null_model, upper=full_model), direction="both")
+summary(best_model)
+
+
+```
 
 ## Nelson-Aalen
 
 ```{r 6.1, echo = FALSE, fig.align='center'}
 # Création du tableau
 risk_methods <- data.frame(
-  Méthode = c("Kaplan-Meier simple", "Nelson-Aalen", "Cox avec covariables (Breslow)"),
+  Méthode = c("Breslow", "Nelson-Aalen", "Cox avec covariables (Breslow)"),
   Formule = c(
     "$H(t) = -\\ln \\hat{S}(t)$",
     "$\\hat{H}_{NA}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{n_i}$",
@@ -546,7 +643,7 @@ df_na <- data.frame(
 
 # --- Fusionner pour ggplot
 df_all <- bind_rows(
-  df_km %>% mutate(Method = "Kaplan-Meier"),
+  df_km %>% mutate(Method = "Breslow"),
   df_na %>% mutate(Method = "Nelson-Aalen")
 )
 
