@@ -51,8 +51,25 @@ Le **mariage** est souvent perçu comme l'union d'une union durable, symbolisant
 Dans le cadre de cette étude, nous utilisons une base de données synthétique portant sur des mariages arrangés afin d'examiner la durée de ces unions et les facteurs susceptibles d'influencer leur stabilités. **L'Analyse de Survie** constitue ici un outil pertinent pour modéliser le temps écoulé entre le mariage et le divorce afin de mieux comprendre la distribution temporelle des ruptures.
 
 
+Cette analyse est surtout pertinente d’un point de vue sociologique, permet de mieux comprendre les dynamiques relationnelles qui conduisent à la stabilité ou à la rupture d’un mariage. Étudier la durée d’un mariage et les facteurs associés au divorce éclaire notamment des notions essentielles comme la confiance, la communication, la gestion des conflits ou l’évolution des attentes au sein du couple. Comprendre ces mécanismes aide à mieux appréhender la manière dont les individus construisent ou parfois perdent un lien conjugal durable.
+
+Elle présente également un intérêt social plus large : identifier les facteurs de fragilité permet de sensibiliser les couples, d’améliorer les dispositifs d’accompagnement et de renforcer la prévention. L’objectif n’est pas seulement d’anticiper une rupture, mais aussi de favoriser un environnement relationnel plus sain, où les partenaires disposent des ressources pour maintenir un mariage fondé sur la confiance, la solidarité et le respect mutuel.
+
+## Contexte et justification
+
+La stabilité conjugale constitue un enjeu important sur les plans socia, démographique et psychologique. La durée d’un mariage influence notamment le bien-être des individus, le développement des enfants, mais aussi la structuration des familles et la cohésion sociale. À l'inverse, le divorce ou la séparation engendre des conséquences multiples : coûts émotionnels, réorganisation familiale, contraintes économiques ou fragilité psychologique.
+
+Dans le cas des mariages arrangés, ces enjeux sont accentués par des dynamiques culturelles particulières, notamment le rôle de l’entourage, l’absence de choix conjugal initial ou la pression sociale. Étudier la durée de ces unions permet donc de mieux comprendre les mécanismes spécifiques qui favorisent la stabilité ou, au contraire, précipitent la rupture.
+
+## Problématique
+
+Quels facteurs influencent la durée d’un mariage arrangé et la probabilité de divorce ou de séparation au fil du temps ?
+Comment des caractéristiques individuelles, familiales ou relationnelles peuvent-elles modifier le risque de rupture ?
 
 
+Quels facteurs influencent la durée de mariage ?
+
+# Description et préparation des données
 
 ## - Presentation des variables
 
@@ -131,25 +148,23 @@ kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec 
   row_spec(0, bold=TRUE, color="white", background="#2C3E50")            # header
 ```
 
-# - Analyse exploratoire
-
-
 ## - Boxplot des données Quantitatives & Histogrammes
 
 
 
 
 ```{r 2 Boxplot Numérique, echo = FALSE, fig.align='center'}
-# Prendre que les variables quantitatives
 vars_quanti <- Nom_de_la_variable[Type == "Quantitative"]
 
 for (i in 0:4) {
-  # Grille 2 lignes × 5 colonnes
   par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
   for (j in 1:2) {
     var_name <- vars_quanti[2*i+j]
+    x <- data.brute[[var_name]]
+    
+    # --- Boxplot ---
     boxplot(
-      data.brute[[var_name]],
+      x,
       main = var_name,
       col = "#5DADE2",
       boxwex = 0.5,
@@ -159,23 +174,35 @@ for (i in 0:4) {
       las = 1,
       frame.plot = FALSE
     )
-    hist(
-      data.brute[[var_name]],
-      main = var_name,
-      col = "#5DADE2",
-      prob = TRUE,            # Pour afficher la densité et non la fréquence
-      cex.main = 0.9,
-      cex.axis = 0.9,
-      las = 1,
-      frame.plot = FALSE,
-      border = "white"
-    )
-    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
-    lines(density(data.brute[[var_name]]), col = "red", lwd = 2)
-
+    
+    # --- Adaptation discrète / continue ---
+    if (length(unique(x)) < 15) {
+      # Variable discrète → barplot
+      barplot(table(x),
+              main = paste(var_name, "(discret)"),
+              col = "#5DADE2",
+              las = 1)
+      
+    } else {
+      # Variable continue → hist + densité
+      hist(
+        x,
+        main = var_name,
+        col = "#5DADE2",
+        prob = TRUE,
+        cex.main = 0.9,
+        cex.axis = 0.9,
+        las = 1,
+        frame.plot = FALSE,
+        border = "white"
+      )
+      grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+      lines(density(x), col = "red", lwd = 2)
     }
+  }
 }
 par(mfrow = c(1, 1))
+
 
 
 
@@ -187,38 +214,62 @@ par(mfrow = c(1, 1))
 # Sélection des variables qualitatives
 vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
 
-# Grille 2 lignes × 5 colonnes
-par(mfrow = c(2, 6), mar = c(6, 4, 3, 1)) 
-
 for (i in 0:5) {
-  # Grille 2 lignes × 5 colonnes
-  par(mfrow = c(1, 2), mar = c(6, 4, 3, 1))
+  # Pour chaque variable : barplot (à gauche) + pie chart (à droite)
+  par(mfrow = c(1, 2), mar = c(4, 0, 4, 0), cex = 1)
   for (j in 1:2) {
-  var_name <- vars_quali[2*i+j]
-  # Comptage des modalités
-  counts <- table(data.brute[[var_name]])
+    var_name <- vars_quali[2*i + j]
+    counts <- table(data.brute[[var_name]])
+    
+    # Titre plus lisible
+    main_title <- gsub("_", "\n", var_name)
+    
+    ## ---- Graphique 1 : Barplot ----
+    barplot(
+      counts,
+      main = main_title,
+      col = "#58D68D",
+      border = "gray25",
+      cex.main = 0.9,
+      cex.axis = 0.8,
+      cex.names = 0.7,
+      las = 2,
+      frame.plot = FALSE
+    )
+    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+    
+    # Calcul des pourcentages
+  pct <- round(100 * counts / sum(counts), 1)
   
-  # Titre avec retour à la ligne si besoin
-  main_title <- gsub("_", "\n", var_name)
+  # Couleurs
+  cols <- rainbow(length(counts))
   
-  barplot(
+  # Pie chart sans labels
+  pie(
     counts,
     main = main_title,
-    col = "#58D68D",
-    border = "gray25",
-    cex.main = 0.9,
-    cex.axis = 0.8,
-    cex.names = 0.7,       # taille des noms des modalités
-    las = 2,               # rotation des labels pour qu’ils soient lisibles
-    frame.plot = FALSE
+    col = cols,
+    labels = NA,   # pas de labels sur les secteurs
+    cex.main = 0.9
   )
-  grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+  
+  # Ajouter légende à droite
+  legend(
+    "topright",
+    legend = paste0(names(counts), " (", pct, "%)"),
+    fill = cols,
+    cex = 0.7,
+    bty = "n",
+    ncol = 2   # met la légende sur 2 colonnes
+  )
+
+
   }
 }
 
-
-# ✅ Revenir à une seule figure
+# Revenir à 1 figure
 par(mfrow = c(1, 1))
+
 ```
 
 # - Analyse de survie
@@ -264,7 +315,7 @@ tableau <- data.frame(
 )
 
 # Affichage avec kable
-kable(tableau, "html", caption = "📊 Interprétation et définitions des fonctions de survie") %>%
+kable(tableau, "html", caption = "📊 Interprétation et définitions des fonctions de survie", align = c("c","c","c","c")) %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed"),
     full_width = FALSE
@@ -284,14 +335,14 @@ kable(tableau, "html", caption = "📊 Interprétation et définitions des fonct
 **Estimateur empirique de la fonction de survie :**
 
 $$
-\hat{S}(t) = \frac{1}{n} \sum_{i = 1}^{n} 1_{t_i > t}
+\hat{S}(t) = \frac{1}{n} \sum_{i=1}^{n} \boldsymbol{1}_{\{t_i > t\}}
 $$
 
 - \( n \) = nombre total d'observations  
 - \( t_i \) = temps jusqu’à l’événement pour l’individu \( i \)  
-- \( 1_{t_i > t} \) = indicateur qui vaut 1 si l’individu n’a pas encore eu l’événement à \( t \), 0 sinon  
+- \( \boldsymbol{1}_{\{t_i > t\}} \) = indicateur qui vaut 1 si l’individu n’a pas encore eu l’événement à \( t \), 0 sinon  
 
-Cet estimateur correspond simplement à la **proportion d’individus encore “en vie”** (ou mariés) au temps \( t \).  
+Cet estimateur correspond simplement à la **proportion d’individus encore mariés au temps \( t \).  
 Il suppose qu’il **n’y a aucune donnée censurée**, c’est-à-dire que tous les individus ont eu l’événement observé.
 
 ---
@@ -328,9 +379,7 @@ $$
 
 ---
 
-## - Analyse de la Durée de marriage avant divorce 
-
-**durée de mariage**
+## - Fonction de survie : Kaplan-Meier
 
 ```{r 4 Fonction de survie, echo = FALSE, fig.align='center'}
 # --- Données
@@ -339,24 +388,115 @@ event <- data.brute$divorced
 
 # --- 1️⃣ SANS CENSURE
 surv_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
+summary(surv_no_censor)
 
 # --- 2️⃣ AVEC CENSURE
 surv_censor <- survfit(Surv(time, event) ~ 1)
+summary(surv_censor)
 
 # --- 3️⃣ PLOT COMPARATIF avec intervalle de confiance
+# --- Plot comparatif avec intervalle de confiance
 ggsurvplot_combine(
   list("Sans censure" = surv_no_censor, "Avec censure" = surv_censor),
   combine = TRUE,
-  conf.int = TRUE,                     # activer l'intervalle de confiance
-  conf.int.alpha = 0.2,                # transparence de la bande
-  legend.title = "Type de données",
+  conf.int = TRUE,                   # activer l'intervalle de confiance
+  conf.int.alpha = 0.25,             # transparence de la bande
+  legend.title = NULL,
   legend.labs = c("Sans censure", "Avec censure"),
-  palette = c("blue", "red"),
+  palette = c("#1f78b4", "#e31a1c"), # bleu et rouge plus doux
   xlab = "Durée du mariage (années)",
-  ylab = "S(t) = Probabilité de rester marié",
-  title = "Comparaison des fonctions de survie : sans et avec censure"
+  ylab = "Probabilité de rester marié",
+  title = "Comparaison des fonctions de survie : sans et avec censure",
+  surv.median.line = "hv",           # ligne médiane horizontale/verticale
+  risk.table.height = 0.25,
+  ggtheme = theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+      legend.position = "top",
+      legend.text = element_text(size = 12)
+    )
 )
 ```
+
+
+## Modèle de Cox sur le niveau d'éducation
+
+```{r education_level 11, echo=FALSE, fig.align='center'}
+# Assurer que education_level est bien un facteur avec des niveaux lisibles
+data.brute$education_level <- factor(data.brute$education_level,
+                                     levels = unique(data.brute$education_level))
+
+# Cox univarié
+cox_edu <- coxph(Surv(marriage_duration_years, divorced) ~ education_level, 
+                 data = data.brute)
+
+# Préparer une data.frame avec chaque niveau pour la prédiction
+newdata_edu <- data.frame(education_level = levels(data.brute$education_level))
+
+# Estimation de la survie par niveau
+surv_fit_edu <- survfit(cox_edu, newdata = newdata_edu)
+
+# Palette automatique adaptée au nombre de groupes
+n_levels <- length(levels(data.brute$education_level))
+colors <- c("red", "blue", "green", "purple", "orange")  # 5 groupes
+
+# Plot avec survminer
+ggsurvplot(
+  surv_fit_edu,
+  data = data.brute,
+  conf.int = FALSE,
+  legend.title = "",
+  legend.labs = levels(data.brute$education_level),  # <-- légende lisible
+  xlab = "Durée du mariage (années)",
+  ylab = "Probabilité de rester marié",
+  palette = colors,
+  surv.median.line = "hv", # ligne horizontale/verticale pour la médiane
+  ggtheme = theme_minimal(base_size = 14)
+)
+
+```
+
+## Modèle de Cox selon le problème de santé mental
+
+```{r education_level, echo=FALSE, fig.align='center'}
+# Assurer que education_level est bien un facteur avec des niveaux lisibles
+data.brute$mental_health_issues <- factor(data.brute$mental_health_issues,
+                                     levels = unique(data.brute$mental_health_issues))
+
+# Cox univarié
+cox_edu <- coxph(Surv(marriage_duration_years, divorced) ~ mental_health_issues, 
+                 data = data.brute)
+
+# Préparer une data.frame avec chaque niveau pour la prédiction
+newdata_edu <- data.frame(mental_health_issues = levels(data.brute$mental_health_issues))
+
+# Estimation de la survie par niveau
+surv_fit_edu <- survfit(cox_edu, newdata = newdata_edu)
+
+# Palette automatique adaptée au nombre de groupes
+n_levels <- length(levels(data.brute$mental_health_issues))
+colors <- c("red", "blue")  # 3 groupes
+
+# Plot avec survminer
+ggsurvplot(
+  surv_fit_edu,
+  data = data.brute,
+  conf.int = FALSE,
+  legend.title = "",
+  legend.labs = levels(data.brute$mental_health_issues),  # <-- légende lisible
+  xlab = "Durée du mariage (années)",
+  ylab = "Probabilité de rester marié",
+  palette = colors,
+  surv.median.line = "hv", # ligne horizontale/verticale pour la médiane
+  ggtheme = theme_minimal(base_size = 14)
+)
+
+```
+
+
+
+
+## Nelson-Aalen
 
 ```{r 6.1, echo = FALSE, fig.align='center'}
 # Création du tableau
@@ -376,7 +516,7 @@ risk_methods <- data.frame(
 )
 
 # Affichage avec kable et style
-kable(risk_methods, "html", escape = FALSE, caption = "📊 Méthodes d’estimation du risque cumulatif") %>%
+kable(risk_methods, "html", escape = FALSE, caption = "📊 Méthodes d’estimation du risque cumulatif", align = c("c","c","c")) %>%
   kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
   column_spec(1, bold = TRUE, color = "black", background = "#D6EAF8") %>%
   column_spec(2, width = "6cm") %>%
@@ -431,40 +571,14 @@ ggplot(df_all, aes(x = time, y = H, color = Method)) +
 
 
 ```{r 7 Fonction de risque instantanée, echo = FALSE, fig.align='center'}
+library(survival)
+library(survminer)
 
-# --- Données
+# --- Créer objet Surv
 time <- data.brute$marriage_duration_years
-event <- data.brute$divorced
+event <- data.brute$divorced  # 1=divorcé, 0=censuré
+surv_obj <- Surv(time, event)
 
-# --- Hazard avec censure
-fit_censor <- survfit(Surv(time, event) ~ 1)
-H_censor <- -log(fit_censor$surv)
-time_censor <- fit_censor$time[-1]
-hazard_censor <- diff(H_censor) / diff(fit_censor$time)
-
-# --- Hazard sans censure
-fit_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
-H_no_censor <- -log(fit_no_censor$surv)
-time_no_censor <- fit_no_censor$time[-1]
-hazard_no_censor <- diff(H_no_censor) / diff(fit_no_censor$time)
-
-# --- Préparer data.frame pour ggplot
-df_hazard <- rbind(
-  data.frame(time = time_censor, hazard = hazard_censor, type = "Avec censure"),
-  data.frame(time = time_no_censor, hazard = hazard_no_censor, type = "Sans censure")
-)
-
-# --- Plot ggplot2 escalier (step)
-ggplot(df_hazard, aes(x = time, y = hazard, color = type)) +
-  geom_step(size = 1.5) +                           # courbes en escalier
-  scale_color_manual(values = c("red","blue")) +   # couleurs cohérentes
-  labs(title = "Fonction de risque instantanée",
-       x = "Durée du mariage (années)",
-       y = "Risque instantané",
-       color = "Type de données") +
-  theme_minimal(base_size = 14) +
-  theme(plot.title = element_text(hjust = 0.5),
-        legend.position = "top")
 ```
 
 
