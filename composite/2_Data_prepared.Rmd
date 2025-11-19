@@ -1,0 +1,203 @@
+
+```{r source data_prepared, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+suppressPackageStartupMessages(source("setup.R"))
+```
+
+# Description et préparation des données
+
+## - Presentation des variables
+
+```{r data_prepared_0, echo = FALSE}
+dimension <- dim(data.brute)
+n <- dimension[1]
+p <- dimension[2]
+```
+
+Notre base de données comporte 5000 observations pour 22 variables. Sur les 22 variables, nous retrouvons près de 10 variables quantitatives pour 12 qualitatives. De plus, notre base de données ne comporte aucune valeurs manquantes, ce qui réduit la complexité des prétraitements des données et permet de déterminer directement l'analyse exploratoire. Le tableau ci-dessous synthétise la présentation ainsi que les types et sous-type de variables.
+
+```{r data_prepared_1, echo = FALSE}
+
+# Création du dataframe
+
+Nom_de_la_variable <- c("age_at_marriage","marriage_duration_years","divorced","num_children",
+                         "education_level","employment_status","combined_income",
+                         "religious_compatibility","cultural_background_match","communication_score",
+                         "conflict_frequency","conflict_resolution_style","mental_health_issues",
+                         "financial_stress_level","infidelity_occurred","counseling_attended",
+                         "social_support","shared_hobbies_count","marriage_type",
+                         "pre_marital_cohabitation","domestic_violence_history","trust_score")
+
+Description <- c("Âge au mariage","Durée du mariage","Divorce (oui/non)","Nombre d’enfants",
+                  "Niveau d’éducation","Statut professionnel","Revenu combiné",
+                  "Compatibilité religieuse","Correspondance culturelle","Score de communication",
+                  "Fréquence des conflits","Style de résolution de conflit","Problèmes de santé mentale",
+                  "Niveau de stress financier","Infidélité survenue","A suivi un counseling",
+                  "Soutien social","Nombre de hobbies partagés","Type de mariage",
+                  "Cohabitation avant mariage","Historique de violence domestique","Score de confiance")
+
+Type <- c("Quantitative","Quantitative","Qualitative","Quantitative","Qualitative",
+           "Qualitative","Quantitative","Qualitative","Qualitative","Quantitative",
+           "Quantitative","Qualitative","Qualitative","Quantitative","Qualitative",
+           "Qualitative","Quantitative","Quantitative","Qualitative","Qualitative",
+           "Qualitative","Quantitative")
+
+Sous_type = c("Discrète","Discrète","Binaire","Discrète","Ordinale",
+                "Nominale","Continue","Nominale","Binaire","Continue",
+                "Discrète","Nominale","Binaire","Continue","Binaire",
+                "Binaire","Continue","Discrète","Nominale","Binaire",
+                "Binaire","Continue")
+
+variables <- data.frame(
+  Nom_de_la_variable,
+  Description,
+  Type,
+  Sous_type,
+  stringsAsFactors = FALSE
+)
+
+# Fonction de coloration conditionnelle
+variables <- variables %>%
+  mutate(
+    Type = cell_spec(Type,
+                     background = ifelse(Type=="Quantitative","#5DADE2","#58D68D"),
+                     color="black", bold=TRUE, escape=FALSE),
+    Sous_type = cell_spec(Sous_type,
+                          background = case_when(
+                            Sous_type == "Binaire"   ~ "#A3E4D7",  # vert menthe
+                            Sous_type == "Discrète"  ~ "#85C1E9",  # bleu clair
+                            Sous_type == "Ordinale"  ~ "#F7DC6F",  # jaune doré
+                            Sous_type == "Nominale"  ~ "#F5B041",  # orange doux
+                            Sous_type == "Continue"  ~ "#E59866"   # rouge rosé
+                          ),
+                          color = "black",
+                          escape = FALSE)
+  )
+
+# Affichage du tableau
+kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec code couleur") %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width=FALSE) %>%
+  column_spec(1, bold=TRUE, color="black", background="#D6EAF8") %>%    # colonne Nom_de_la_variable
+  column_spec(2, width="8cm", bold=TRUE, background="#EBF5FB") %>%       # colonne Description
+  row_spec(0, bold=TRUE, color="white", background="#2C3E50")            # header
+```
+
+## - Boxplot des données Quantitatives & Histogrammes
+
+
+
+
+```{r data_prepared_2, echo = FALSE, fig.align='center'}
+vars_quanti <- Nom_de_la_variable[Type == "Quantitative"]
+
+for (i in 0:4) {
+  par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
+  for (j in 1:2) {
+    var_name <- vars_quanti[2*i+j]
+    x <- data.brute[[var_name]]
+    
+    # --- Boxplot ---
+    boxplot(
+      x,
+      main = var_name,
+      col = "#5DADE2",
+      boxwex = 0.5,
+      outline = TRUE,
+      cex.main = 0.9,
+      cex.axis = 0.9,
+      las = 1,
+      frame.plot = FALSE
+    )
+    
+    # --- Adaptation discrète / continue ---
+    if (length(unique(x)) < 15) {
+      # Variable discrète → barplot
+      barplot(table(x),
+              main = paste(var_name, "(discret)"),
+              col = "#5DADE2",
+              las = 1)
+      
+    } else {
+      # Variable continue → hist + densité
+      hist(
+        x,
+        main = var_name,
+        col = "#5DADE2",
+        prob = TRUE,
+        cex.main = 0.9,
+        cex.axis = 0.9,
+        las = 1,
+        frame.plot = FALSE,
+        border = "white"
+      )
+      grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+      lines(density(x), col = "red", lwd = 2)
+    }
+  }
+}
+par(mfrow = c(1, 1))
+
+```
+
+## - Histogrammes des données Qualitatives
+
+```{r data_prepared_3, echo = FALSE, fig.align='center'}
+# Sélection des variables qualitatives
+vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
+
+for (i in 0:5) {
+  # Pour chaque variable : barplot (à gauche) + pie chart (à droite)
+  par(mfrow = c(1, 2), mar = c(4, 0, 4, 0), cex = 1)
+  for (j in 1:2) {
+    var_name <- vars_quali[2*i + j]
+    counts <- table(data.brute[[var_name]])
+    
+    # Titre plus lisible
+    main_title <- gsub("_", "\n", var_name)
+    
+    ## ---- Graphique 1 : Barplot ----
+    barplot(
+      counts,
+      main = main_title,
+      col = "#58D68D",
+      border = "gray25",
+      cex.main = 0.9,
+      cex.axis = 0.8,
+      cex.names = 0.7,
+      las = 2,
+      frame.plot = FALSE
+    )
+    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
+    
+    # Calcul des pourcentages
+  pct <- round(100 * counts / sum(counts), 1)
+  
+  # Couleurs
+  cols <- rainbow(length(counts))
+  
+  # Pie chart sans labels
+  pie(
+    counts,
+    main = main_title,
+    col = cols,
+    labels = NA,   # pas de labels sur les secteurs
+    cex.main = 0.9
+  )
+  
+  # Ajouter légende à droite
+  legend(
+    "topright",
+    legend = paste0(names(counts), " (", pct, "%)"),
+    fill = cols,
+    cex = 0.7,
+    bty = "n",
+    ncol = 2   # met la légende sur 2 colonnes
+  )
+
+
+  }
+}
+
+# Revenir à 1 figure
+par(mfrow = c(1, 1))
+
+```

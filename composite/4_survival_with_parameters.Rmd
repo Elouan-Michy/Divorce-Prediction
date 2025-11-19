@@ -1,0 +1,8 @@
+
+```{r source dataprepared witjout_parameters, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+suppressPackageStartupMessages(source("setup.R"))
+```
+
+```{r survival_with_parameters_0}
+
+```

@@ -1,0 +1,24 @@
+# - Introduction
+
+Le **mariage** est souvent perçu comme l'union d'une union durable, symbolisant l'engagement et la stabilité dans la vie d'un couple. Pourtant, dans de nombreux contextes, les mariages connaissent des trajectoires variées : certains dure toute une vie, d'autre se terminent plus rapidement par un divorce. Ce phénomène est particulièrement intéressant à observer lorsque celui-ci repose sur un mariage arrangé, qui repose sur des dynamiques sociales et familiales différentes de celles d'un mariage romantique. Ces unions peuvent parfois révéler des différences profondes entre les partenaires ou faire émerger des schémas de relations complexes, voire toxiques.
+
+Dans le cadre de cette étude, nous utilisons une base de données synthétique portant sur des mariages arrangés afin d'examiner la durée de ces unions et les facteurs susceptibles d'influencer leur stabilités. **L'Analyse de Survie** constitue ici un outil pertinent pour modéliser le temps écoulé entre le mariage et le divorce afin de mieux comprendre la distribution temporelle des ruptures.
+
+
+Cette analyse est surtout pertinente d’un point de vue sociologique, permet de mieux comprendre les dynamiques relationnelles qui conduisent à la stabilité ou à la rupture d’un mariage. Étudier la durée d’un mariage et les facteurs associés au divorce éclaire notamment des notions essentielles comme la confiance, la communication, la gestion des conflits ou l’évolution des attentes au sein du couple. Comprendre ces mécanismes aide à mieux appréhender la manière dont les individus construisent ou parfois perdent un lien conjugal durable.
+
+Elle présente également un intérêt social plus large : identifier les facteurs de fragilité permet de sensibiliser les couples, d’améliorer les dispositifs d’accompagnement et de renforcer la prévention. L’objectif n’est pas seulement d’anticiper une rupture, mais aussi de favoriser un environnement relationnel plus sain, où les partenaires disposent des ressources pour maintenir un mariage fondé sur la confiance, la solidarité et le respect mutuel.
+
+## Contexte et justification
+
+La stabilité conjugale constitue un enjeu important sur les plans socia, démographique et psychologique. La durée d’un mariage influence notamment le bien-être des individus, le développement des enfants, mais aussi la structuration des familles et la cohésion sociale. À l'inverse, le divorce ou la séparation engendre des conséquences multiples : coûts émotionnels, réorganisation familiale, contraintes économiques ou fragilité psychologique.
+
+Dans le cas des mariages arrangés, ces enjeux sont accentués par des dynamiques culturelles particulières, notamment le rôle de l’entourage, l’absence de choix conjugal initial ou la pression sociale. Étudier la durée de ces unions permet donc de mieux comprendre les mécanismes spécifiques qui favorisent la stabilité ou, au contraire, précipitent la rupture.
+
+## Problématique
+
+Quels facteurs influencent la durée d’un mariage arrangé et la probabilité de divorce ou de séparation au fil du temps ?
+Comment des caractéristiques individuelles, familiales ou relationnelles peuvent-elles modifier le risque de rupture ?
+
+
+Quels facteurs influencent la durée de mariage ?
