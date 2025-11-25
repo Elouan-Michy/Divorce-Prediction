@@ -19,9 +19,9 @@ Nous verrons donc une double analyse entre sur la
 fonctions <- c("$S(t)$", "$H(t)$", "$h(t)$")
 
 definitions <- c(
-  "$S(t) = P(T \\geq t)$",
+  "$S(t) = P(T \\geq t) = e^{-H(t)}$",
   "$H(t) = \\int_0^t h(u)\\,du = -\\ln S(t)$",
-  "$h(t) = \\dfrac{f(t)}{S(t)} = -\\dfrac{S'(t)}{S(t)}$"
+  "$h(t) = -\\dfrac{S'(t)}{S(t)}$"
 )
 
 premier_temps <- c(
@@ -112,7 +112,7 @@ $$
 
 ## - Fonction de survie : Kaplan-Meier
 
-```{r 4 survival_without_parameters_1, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
 # --- Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
@@ -148,6 +148,17 @@ ggsurvplot_combine(
     )
 )
 ```
+# Estimation du hazard instantané avec kernel smoothing
+```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
+haz_fit <- muhaz(time, event)
+
+plot(haz_fit,
+     main = "Estimation du risque instantané h(t)",
+     xlab = "Durée du mariage (années)",
+     ylab = "Risque instantané de divorce")
+
+```
+
 # Modèle de Cov univarié
 
 ## Modèle de Cox sur le niveau d'éducation
