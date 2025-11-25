@@ -8,6 +8,11 @@ library(dplyr)
 library(gridExtra)
 library(ggplot2)
 library(MASS)
+library(muhaz)
+library(broom)
+library(flexsurv)
+library(ggfortify)
+
 
 # ---- Options ----
 options(digits = 4)
