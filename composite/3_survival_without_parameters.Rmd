@@ -150,14 +150,26 @@ ggsurvplot_combine(
 ```
 # Estimation du hazard instantané avec kernel smoothing
 ```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
-haz_fit <- muhaz(time, event)
 
-plot(haz_fit,
-     main = "Estimation du risque instantané h(t)",
-     xlab = "Durée du mariage (années)",
-     ylab = "Risque instantané de divorce")
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
+
+# Appel muhaz avec les noms explicites
+haz_fit <- muhaz(times = time,
+                 bw.method = "global",
+                 bw = 2)  # largeur de lissage
+
+plot(haz_fit, main="Hazard instantané", xlab="Durée du mariage (années)", ylab="Risque instantané")
+
 
 ```
+
+```{r survival_without_parameters_8, echo = FALSE, fig.align='center'}
+# --- Créer objet Surv
+time[time==40]
+```
+
+
 
 # Modèle de Cov univarié
 
@@ -410,14 +422,13 @@ ggplot(df_all, aes(x = time, y = H, color = Method)) +
 
 
 ```{r survival_without_parameters_8, echo = FALSE, fig.align='center'}
-library(survival)
-library(survminer)
-
 # --- Créer objet Surv
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced  # 1=divorcé, 0=censuré
 surv_obj <- Surv(time, event)
 
 ```
+
+
 
 
