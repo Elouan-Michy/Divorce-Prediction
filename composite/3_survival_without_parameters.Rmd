@@ -148,31 +148,352 @@ ggsurvplot_combine(
     )
 )
 ```
-# Estimation du hazard instantané avec kernel smoothing
-```{r survival_without_parameters_3b, echo = FALSE, fig.align='center'}
 
-#time <- data.brute$marriage_duration_years
-#event <- data.brute$divorced
+## Nelson-Aalen
 
-#haz_fit <- muhaz(times = time,
-#                 delta = event,
-#                 max.time = max(time),
-#                 min.time = min(time))
+### Estimateur Nelson-Aalen
+
+## 2.1 Estimateur de Nelson-Aalen
+
+L’estimateur de **Nelson-Aalen** permet d’estimer le **risque cumulatif** \(\Lambda(t)\) dans le cadre de données censurées.
+
+Soit :
+
+- \(X\) : temps jusqu’à l’événement d’intérêt (ex. divorce)  
+- \(C\) : temps de censure (ex. fin de l’étude ou perte de suivi)  
+- \(T = \min(X, C)\) : temps observé pour chaque individu  
+ 
+
+On définit :
+
+- \(H(t) = P(T > t) = P(X > t, C > t) = P(X > t)P(C > t)= S(t) G(t)\)  où \(G\) est la fonction de survie de la censure \(C\)  
 
 
-#plot(haz_fit,
-#     main = "Hazard instantané",
-#     xlab = "Durée du mariage (années)",
-#     ylab = "Risque instantané")
+- \(H_1(t) = P(T > t, \delta = 1) = P(X > t, C > X)\)  
+
+On peut écrire \(H_1(t)\) en fonction de la densité \(f(u)\) de \(X\) et de \(G(u)\) :
+
+\[
+\begin{aligned}
+H_1(t) &= P(X > t,\, C > X) \\
+&= E\big[ \mathbf{1}_{\{X > t\}} \cdot \mathbf{1}_{\{C > X\}} \big] \\[6pt]
+&= E\Big[ \mathbf{1}_{\{X > t\}} \, E\big[\mathbf{1}_{\{C > X\}}\mid X\big] \Big] \\[6pt]
+&= E\big[ \mathbf{1}_{\{X > t\}} \, P(C > X \mid X) \big] \\[6pt]
+&= E\big[ \mathbf{1}_{\{X > t\}} \, G(X^-) \big] \\[6pt]
+&= \displaystyle \int_{t}^{\infty} G(u^-) \, f(u)\,du \\[6pt]
+&= - \displaystyle \int_{t}^{\infty} G(u^-) \, dS(u)
+\end{aligned}
+\]
+
+On obtient donc :
+
+\[ 
+dH_1(t) = G(t^{-})dS(t)
+\]
+
+Et donc par le temps on obtient :
+
+\[ 
+\frac{dH_1(t)}{dt} = \frac{G(t^{-})dS(t)}{dt}
+\]
+
+ce qui donne mathématiquement :
+
+\[ 
+H_1'(t) = G(t^{-})S'(t)
+\]
+
+Ainsi on a :
+
+\[
+\begin{aligned}
+\hat{H}_{NA}(t) &= \displaystyle \int_{0}^{t} h(u) \, du \\[2mm]
+&= \displaystyle \int_{0}^{t} -\frac{S'(u)}{S(u)} \, du \\[2mm]
+&= \displaystyle \int_{0}^{t} -\frac{\frac{H_1(u)}{G(u^{-})}}{\frac{H(u)}{G(u)}} \, du \\[2mm]
+&= \displaystyle \int_{0}^{t} -\frac{H_1(u)}{H(u)}\frac{G(u)}{G(u^{-})} \, du \\[2mm]
+&= \displaystyle \int_{0}^{t} -\frac{H_1(u)}{H(u)} \, du
+\end{aligned}
+\]
+
+Un estimateur *naturel* s’obtient en remplaçant les fonctions \(H\) et \(H_1\) par leurs équivalents empiriques (calculables car les variables \(T\) et \(\delta\) sont observées):
+
+\[
+\hat{H}(u) = \frac{1}{n} \sum_{i=1}^{n} \mathbf{1}_{\{T_i > u\}}, \quad
+\hat{H}_1(u) = \frac{1}{n} \sum_{i=1}^{n} \mathbf{1}_{\{T_i > u, \delta_i = 1\}}
+\]
+
+L’estimateur de Nelson-Aalen est alors donné par :
+
+\[
+\hat{H}_{NA}(t) = \displaystyle \int_{0}^{t} - \frac{\displaystyle \sum_{i=1}^{n} \mathbf{1}_{\{T_i > u, \delta_i = 1\}}}{\displaystyle \sum_{i=1}^{n} \mathbf{1}_{\{T_i > u\}}} \, du 
+\]
+
+Comme \(T\) est à temps discret, l’intégrale devient une **somme sur les temps d’événement distincts** , et on définit alors pour chaque temps d’événement \(t_i\) :
+
+\[
+d_i = \sum_{j=1}^{n} \mathbf{1}_{\{T_j = t_i, \delta_j = 1\}}, 
+\quad
+n_i = \sum_{j=1}^{n} \mathbf{1}_{\{T_j \ge t_i\}}.
+\]
+
+Ce qui donne :
+
+\[
+\hat{H}_{NA}(t) = \sum_{t_i \le t} \frac{d_i}{n_i}.
+\]
+
+
+---
+
+Une autre façon de calculer la fonction de risque cumulée et de passer par l'estimateur de beslow. 
+
+\subsection*{3.1 Estimateur de Breslow du risque cumulé}
+
+Rappel : l'estimateur de Kaplan–Meier de la fonction de survie s'écrit, pour des temps d'événement distincts \(t_1<\dots<t_m\),
+\[
+\hat{S}(t)=\prod_{t_i\le t}\left(1-\frac{d_i}{n_i}\right),
+\]
+où \(d_i\) est le nombre d'événements au temps \(t_i\) et \(n_i\) le nombre d'individus à risque juste avant \(t_i\).
+
+En utilisant la relation
+\[
+H(t)=-\log S(t),
+\]
+on obtient l'estimateur de Breslow du risque cumulé :
+\[
+\hat{H}_{\text{Breslow}}(t) 
+= -\log\big(\hat{S}(t)\big)
+= -\log\!\left(\prod_{t_i\le t}\left(1-\frac{d_i}{n_i}\right)\right)
+= -\sum_{t_i\le t} \log\!\left(1-\frac{d_i}{n_i}\right).
+\]
+
+\bigskip
+
+\textbf{Lien avec Nelson–Aalen.} Pour des fractions \(d_i/n_i\) petites, on utilise l'approximation
+\(\log(1-x)\approx -x\) pour \(x\) proche de \(0\). Ainsi
+\[
+\sum_{t_i\le t}\log\!\left(1-\frac{d_i}{n_i}\right)
+\approx \sum_{t_i\le t}\frac{d_i}{n_i},
+\]
+**Ce qui montre que l'estimateur de Breslow est proche (et asymptotiquement équivalent) à l'estimateur de Nelson–Aalen**
+\(\hat{H}_{NA}(t)=\sum_{t_i\le t}\dfrac{d_i}{n_i}\) lorsque les sauts sont petits.
+
+
+```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
+# Tableau combiné Nelson-Aalen + Breslow
+risk_methods <- data.frame(
+  Méthode = c("Nelson-Aalen", "Breslow"),
+  Formule = c(
+    "$\\hat{H}_{NA}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{n_i}$",
+    "$\\hat{H}_{\\text{Breslow}}(t) = - \\sum_{t_i \\le t} \\log\\left(1 - \\dfrac{d_i}{n_i}\\right)$"
+  ),
+  Description = c(
+    "Estimateur non paramétrique basé sur les événements observés et le nombre de sujets à risque.",
+    "Estimateur du risque cumulatif dérivé de $H(t) = -\\log(S(t))$ via l'estimateur de Kaplan-Meier."
+  ),
+  stringsAsFactors = FALSE
+)
+
+kable(risk_methods, "html", escape = FALSE,
+      caption = "📊 Méthodes d’estimation du risque cumulatif : Nelson-Aalen et Breslow",
+      align = c("c","c","c")) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
+  
+  # Style colonne Méthode (différencié)
+  column_spec(1, bold = TRUE, color = "black", background = c("#D6EAF8", "#F9E79F")) %>%
+  
+  # Largeur colonnes
+  column_spec(2, width = "6cm") %>%
+  column_spec(3, width = "8cm") %>%
+  
+  # Style ligne d'en-tête
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
+
 
 ```
 
+```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
+# --- Données
+time  <- data.brute$marriage_duration_years
+event <- data.brute$divorced
+
+km_fit <- survfit(Surv(time, event) ~ 1)
+H_NA <- cumsum(km_fit$n.event / km_fit$n.risk)  # cumhaz de base
+se_H_NA <- sqrt(cumsum(km_fit$n.event / (km_fit$n.risk^2)))  # Greenwood approx
+
+df_na <- data.frame(
+  time = km_fit$time,
+  H_NA = H_NA,
+  H_NA_lower = H_NA - 1.96 * se_H_NA,
+  H_NA_upper = H_NA + 1.96 * se_H_NA
+)
+
+
+# --- Breslow : H(t) = -log(S(t))
+km_fit <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
+
+df_breslow <- data.frame(
+  time = km_fit$time,
+  H_Breslow = -log(km_fit$surv),
+  H_Breslow_lower = -log(km_fit$upper),
+  H_Breslow_upper = -log(km_fit$lower)
+)
+
+# --- Fusion
+df_merge <- merge(df_na, df_breslow, by = "time", all = TRUE)
+
+library(ggplot2)
+
+ggplot(df_merge, aes(x = time)) +
+
+  # --- Nelson-Aalen avec IC ---
+  geom_ribbon(aes(ymin = H_NA_lower, ymax = H_NA_upper),
+              fill = "red", alpha = 0.15) +
+  geom_line(aes(y = H_NA, color = "Nelson-Aalen"), size = 1.2) +
+
+  # --- Breslow avec IC ---
+  geom_ribbon(aes(ymin = H_Breslow_lower, ymax = H_Breslow_upper),
+              fill = "blue", alpha = 0.15) +
+  geom_line(aes(y = H_Breslow, color = "Breslow"),
+            size = 1.2) +
+
+  labs(
+    title = "Comparaison des Estimateurs du Risque Cumulatif\nAvec intervalles de confiance à 95%",
+    x = "Durée du mariage (années)",
+    y = "Risque cumulatif H(t)",
+    color = "Méthode"
+  ) +
+  scale_color_manual(values = c("Nelson-Aalen" = "red", "Breslow" = "blue")) +
+
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+
+```
+
+### Estimateur de Nelson-Aalen sans et avec censure
+
+```{r survival_without_parameters_4, echo = FALSE, fig.align='center'}
+# --- Nelson-Aalen avec censure ---
+km_fit_cens <- survfit(Surv(time, event) ~ 1)
+H_NA_cens <- cumsum(km_fit_cens$n.event / km_fit_cens$n.risk)
+se_H_NA_cens <- sqrt(cumsum(km_fit_cens$n.event / (km_fit_cens$n.risk^2)))
+
+df_na_cens <- data.frame(
+  time = km_fit_cens$time,
+  H_NA = H_NA_cens,
+  H_NA_lower = H_NA_cens - 1.96 * se_H_NA_cens,
+  H_NA_upper = H_NA_cens + 1.96 * se_H_NA_cens
+)
+
+# --- Nelson-Aalen sans censure ---
+event_no_cens <- rep(1, length(time))
+km_fit_no_cens <- survfit(Surv(time, event_no_cens) ~ 1)
+H_NA_no_cens <- cumsum(km_fit_no_cens$n.event / km_fit_no_cens$n.risk)
+se_H_NA_no_cens <- sqrt(cumsum(km_fit_no_cens$n.event / (km_fit_no_cens$n.risk^2)))
+
+df_na_no_cens <- data.frame(
+  time = km_fit_no_cens$time,
+  H_NA_no_cens = H_NA_no_cens,
+  H_NA_no_cens_lower = H_NA_no_cens - 1.96 * se_H_NA_no_cens,
+  H_NA_no_cens_upper = H_NA_no_cens + 1.96 * se_H_NA_no_cens
+)
+
+# --- Fusion ---
+df_merge <- merge(df_na_cens, df_na_no_cens, by = "time", all = TRUE)
+
+# --- Tracé avec intervalles ---
+ggplot(df_merge, aes(x = time)) +
+  # ribbon pour les IC
+  geom_ribbon(aes(ymin = H_NA_lower, ymax = H_NA_upper),
+              fill = "blue", alpha = 0.15) +
+  geom_ribbon(aes(ymin = H_NA_no_cens_lower, ymax = H_NA_no_cens_upper),
+              fill = "red", alpha = 0.15) +
+  # lignes estimateurs
+  geom_line(aes(y = H_NA, color = "Avec censure"), size = 1.2) +
+  geom_line(aes(y = H_NA_no_cens, color = "Sans censure"), size = 1.2) +
+  labs(
+    title = "Estimateur de Nelson-Aalen avec et sans censure",
+    x = "Durée du mariage (années)",
+    y = "Risque cumulatif H(t)",
+    color = "Méthode"
+  ) +
+  scale_color_manual(values = c("Avec censure" = "blue", "Sans censure" = "red")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+
+```
+
+
+### Estimateur de Breslow sans et avec censure
+
+```{r survival_without_parameters_5, echo = FALSE, fig.align='center'}
+# --- Données ---
+time  <- data.brute$marriage_duration_years
+event <- data.brute$divorced
+
+# --- Breslow avec censure ---
+km_fit_cens <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
+df_breslow_cens <- data.frame(
+  time = km_fit_cens$time,
+  H_Breslow = -log(km_fit_cens$surv),
+  H_Breslow_lower = -log(km_fit_cens$upper),
+  H_Breslow_upper = -log(km_fit_cens$lower)
+)
+
+# --- Breslow sans censure ---
+event_no_cens <- rep(1, length(time))  # tout le monde a eu l'événement
+km_fit_no_cens <- survfit(Surv(time, event_no_cens) ~ 1, type = "kaplan-meier")
+df_breslow_no_cens <- data.frame(
+  time = km_fit_no_cens$time,
+  H_Breslow_no_cens = -log(km_fit_no_cens$surv),
+  H_Breslow_no_cens_lower = -log(km_fit_no_cens$upper),
+  H_Breslow_no_cens_upper = -log(km_fit_no_cens$lower)
+)
+
+# --- Fusion ---
+df_merge <- merge(df_breslow_cens, df_breslow_no_cens, by = "time", all = TRUE)
+
+# --- Tracé avec intervalles de confiance ---
+ggplot(df_merge, aes(x = time)) +
+  # ribbons IC
+  geom_ribbon(aes(ymin = H_Breslow_lower, ymax = H_Breslow_upper),
+              fill = "blue", alpha = 0.15) +
+  geom_ribbon(aes(ymin = H_Breslow_no_cens_lower, ymax = H_Breslow_no_cens_upper),
+              fill = "red", alpha = 0.15) +
+  # lignes estimateurs
+  geom_line(aes(y = H_Breslow, color = "Breslow avec censure"), size = 1.2) +
+  geom_line(aes(y = H_Breslow_no_cens, color = "Breslow sans censure"), size = 1.2) +
+  labs(
+    title = "Estimateur de Breslow : avec et sans censure",
+    x = "Durée du mariage (années)",
+    y = "Risque cumulatif H(t)",
+    color = "Méthode"
+  ) +
+  scale_color_manual(values = c("Breslow avec censure" = "blue", "Breslow sans censure" = "red")) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold"),
+    legend.position = "bottom"
+  )
+
+```
 
 # Modèle de Cov univarié
 
 ## Modèle de Cox sur le niveau d'éducation
 
-```{r education_level 11, echo=FALSE, fig.align='center'}
+```{r education_level 16, echo=FALSE, fig.align='center'}
 # Assurer que education_level est bien un facteur avec des niveaux lisibles
 data.brute$education_level <- factor(data.brute$education_level,
                                      levels = unique(data.brute$education_level))
@@ -209,7 +530,7 @@ ggsurvplot(
 
 ## Modèle de Cox selon le problème de santé mental
 
-```{r survival_without_parameters_2, echo=FALSE, fig.align='center'}
+```{r survival_without_parameters_7, echo=FALSE, fig.align='center'}
 # Assurer que education_level est bien un facteur avec des niveaux lisibles
 data.brute$mental_health_issues <- factor(data.brute$mental_health_issues,
                                      levels = unique(data.brute$mental_health_issues))
@@ -247,7 +568,7 @@ ggsurvplot(
 
 ## Modèle de Cox selon l'infidélité
 
-```{r survival_without_parameters_3, echo=FALSE, fig.align='center'}
+```{r survival_without_parameters_8, echo=FALSE, fig.align='center'}
 # Assurer que education_level est bien un facteur avec des niveaux lisibles
 data.brute$infidelity_occurred <- factor(data.brute$infidelity_occurred,
                                      levels = unique(data.brute$infidelity_occurred))
@@ -284,7 +605,7 @@ ggsurvplot(
 
 ## Modèle de Cox selon le type de mariage
 
-```{r survival_without_parameters_4, echo=FALSE, fig.align='center'}
+```{r survival_without_parameters_9, echo=FALSE, fig.align='center'}
 # Assurer que education_level est bien un facteur avec des niveaux lisibles
 data.brute$marriage_type <- factor(data.brute$marriage_type,
                                      levels = unique(data.brute$marriage_type))
@@ -321,7 +642,7 @@ ggsurvplot(
 
 # Modèle de Cox multivarié
 
-```{r survival_without_parameters_5, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_10, echo = FALSE, fig.align='center'}
 library(MASS)
 
 # Modèle complet (tout inclure au départ)
@@ -341,88 +662,6 @@ null_model <- coxph(Surv(time, event) ~ 1, data = data.brute)
 best_model <- stepAIC(null_model, scope = list(lower=null_model, upper=full_model), direction="both")
 summary(best_model)
 
-
-```
-
-## Nelson-Aalen
-
-```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
-# Création du tableau
-risk_methods <- data.frame(
-  Méthode = c("Breslow", "Nelson-Aalen", "Cox avec covariables (Breslow)"),
-  Formule = c(
-    "$H(t) = -\\ln \\hat{S}(t)$",
-    "$\\hat{H}_{NA}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{n_i}$",
-    "$\\hat{H}_{Breslow}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{\\sum_{j \\in R(t_i)} e^{\\beta^T X_j}}$"
-  ),
-  Description = c(
-    "Transformation directe de la fonction de survie Kaplan-Meier. Non paramétrique et simple.",
-    "Estimateur non paramétrique basé sur les événements observés et le nombre de sujets à risque.",
-    "Risque cumulatif estimé à partir d’un modèle de Cox avec covariables. Breslow gère les événements multiples au même temps."
-  ),
-  stringsAsFactors = FALSE
-)
-
-# Affichage avec kable et style
-kable(risk_methods, "html", escape = FALSE, caption = "📊 Méthodes d’estimation du risque cumulatif", align = c("c","c","c")) %>%
-  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
-  column_spec(1, bold = TRUE, color = "black", background = "#D6EAF8") %>%
-  column_spec(2, width = "6cm") %>%
-  column_spec(3, width = "8cm") %>%
-  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
-```
-
-```{r survival_without_parameters_7, echo = FALSE, fig.align='center'}
-# --- Données
-time <- data.brute$marriage_duration_years
-event <- data.brute$divorced
-
-# --- 1️⃣ Kaplan-Meier
-km_fit <- survfit(Surv(time, event) ~ 1)
-df_km <- data.frame(
-  time = km_fit$time,
-  H = -log(km_fit$surv)
-)
-
-# --- 2️⃣ Nelson-Aalen
-# H(t) = sum(d_i / n_i)
-na_fit <- survfit(Surv(time, event) ~ 1, type="fleming")  # Fleming-Harrington = Nelson-Aalen
-df_na <- data.frame(
-  time = na_fit$time,
-  H = na_fit$cumhaz
-)
-
-# --- Fusionner pour ggplot
-df_all <- bind_rows(
-  df_km %>% mutate(Method = "Breslow"),
-  df_na %>% mutate(Method = "Nelson-Aalen")
-)
-
-# --- Plot
-ggplot(df_all, aes(x = time, y = H, color = Method)) +
-  geom_step(size = 1.2) +
-  scale_color_manual(values = c("blue","red")) +
-  labs(
-    title = "Comparaison des fonctions de risque cumulée",
-    x = "Durée du mariage (années)",
-    y = "H(t) = Risque cumulatif",
-    color = "Méthode"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5),
-    legend.position = "top"
-  )
-
-```
-
-
-
-```{r survival_without_parameters_8, echo = FALSE, fig.align='center'}
-# --- Créer objet Surv
-time <- data.brute$marriage_duration_years
-event <- data.brute$divorced  # 1=divorcé, 0=censuré
-surv_obj <- Surv(time, event)
 
 ```
 
