@@ -7,7 +7,7 @@ output:
     toc: true                # ✅ active la table des matières
     toc_float: true          # ✅ menu déroulant flottant sur le côté
     number_sections: true    # ✅ numérotation des sections
-    theme: cosmo             # 🌈 thème visuel (cosmo, united, journal, etc.)
+    theme: united          # 🌈 thème visuel (cosmo, united, journal, etc.)
     highlight: tango         # 🎨 style pour le code
     code_folding: show       # 🔽 possibilité de plier/déplier le code
     df_print: default
