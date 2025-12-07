@@ -119,11 +119,11 @@ event <- data.brute$divorced
 
 # --- 1️⃣ SANS CENSURE
 surv_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
-summary(surv_no_censor)
+# summary(surv_no_censor)
 
 # --- 2️⃣ AVEC CENSURE
 surv_censor <- survfit(Surv(time, event) ~ 1)
-summary(surv_censor)
+# summary(surv_censor)
 
 # --- 3️⃣ PLOT COMPARATIF avec intervalle de confiance
 # --- Plot comparatif avec intervalle de confiance
@@ -149,26 +149,23 @@ ggsurvplot_combine(
 )
 ```
 # Estimation du hazard instantané avec kernel smoothing
-```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_3b, echo = FALSE, fig.align='center'}
 
-time <- data.brute$marriage_duration_years
-event <- data.brute$divorced
+#time <- data.brute$marriage_duration_years
+#event <- data.brute$divorced
 
-# Appel muhaz avec les noms explicites
-haz_fit <- muhaz(times = time,
-                 bw.method = "global",
-                 bw = 2)  # largeur de lissage
+#haz_fit <- muhaz(times = time,
+#                 delta = event,
+#                 max.time = max(time),
+#                 min.time = min(time))
 
-plot(haz_fit, main="Hazard instantané", xlab="Durée du mariage (années)", ylab="Risque instantané")
 
+#plot(haz_fit,
+#     main = "Hazard instantané",
+#     xlab = "Durée du mariage (années)",
+#     ylab = "Risque instantané")
 
 ```
-
-```{r survival_without_parameters_8, echo = FALSE, fig.align='center'}
-# --- Créer objet Surv
-time[time==40]
-```
-
 
 
 # Modèle de Cov univarié
