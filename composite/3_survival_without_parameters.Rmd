@@ -489,4 +489,35 @@ ggplot(df_merge, aes(x = time)) +
 
 ```
 
+```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
+# --- Données ---
+time  <- data.brute$marriage_duration_years
+event <- data.brute$divorced
 
+fit <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
+
+# --- Estimation de h(t) ---
+# h(t_i) = di / Yi
+hazard <- fit$n.event / fit$n.risk
+
+# --- Création d'un data.frame pour ggplot ---
+df_hazard <- data.frame(
+  time = fit$time,
+  hazard = hazard
+)
+
+# --- Tracé ---
+ggplot(df_hazard, aes(x = time, y = hazard)) +
+  geom_step(color = "darkgreen", size = 1.2) +
+  labs(
+    title = "Estimation du taux de risque instantané h(t)",
+    x = "Durée du mariage (années)",
+    y = "Taux de risque h(t)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    axis.title = element_text(face = "bold")
+  )
+
+```
