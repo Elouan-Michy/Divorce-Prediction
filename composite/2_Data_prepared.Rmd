@@ -81,123 +81,174 @@ kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec 
   row_spec(0, bold=TRUE, color="white", background="#2C3E50")            # header
 ```
 
+
+
 ## - Boxplot des données Quantitatives & Histogrammes
 
+```{r data_prepared_2, echo = FALSE}
+library(plotly)
+library(RColorBrewer)
 
-
-
-```{r data_prepared_2, echo = FALSE, fig.align='center'}
 vars_quanti <- Nom_de_la_variable[Type == "Quantitative"]
+n <- length(vars_quanti)
 
-for (i in 0:4) {
-  par(mfrow = c(1, 2), mar = c(4, 4, 3, 1))
-  for (j in 1:2) {
-    var_name <- vars_quanti[2*i+j]
-    x <- data.brute[[var_name]]
-    
-    # --- Boxplot ---
-    boxplot(
-      x,
-      main = var_name,
-      col = "#5DADE2",
-      boxwex = 0.5,
-      outline = TRUE,
-      cex.main = 0.9,
-      cex.axis = 0.9,
-      las = 1,
-      frame.plot = FALSE
-    )
-    
-    # --- Adaptation discrète / continue ---
-    if (length(unique(x)) < 15) {
-      # Variable discrète → barplot
-      barplot(table(x),
-              main = paste(var_name, "(discret)"),
-              col = "#5DADE2",
-              las = 1)
-      
-    } else {
-      # Variable continue → hist + densité
-      hist(
-        x,
-        main = var_name,
-        col = "#5DADE2",
-        prob = TRUE,
-        cex.main = 0.9,
-        cex.axis = 0.9,
-        las = 1,
-        frame.plot = FALSE,
-        border = "white"
-      )
-      grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
-      lines(density(x), col = "red", lwd = 2)
-    }
-  }
+# Palette
+cols <- brewer.pal(max(n, 3), "Set2")
+if (length(cols) < n) cols <- colorRampPalette(cols)(n)
+
+fig <- plot_ly()
+
+for (i in seq_along(vars_quanti)) {
+
+  x <- data.brute[[vars_quanti[i]]]
+
+  # Histogramme
+  fig <- fig %>% add_histogram(
+    x = x,
+    visible = (i == 1),
+    xaxis = "x1",
+    yaxis = "y1",
+    marker = list(color = cols[i]),
+    opacity = 0.7,
+    showlegend = FALSE
+  )
+
+  # Boxplot
+  fig <- fig %>% add_boxplot(
+    y = x,
+    visible = (i == 1),
+    xaxis = "x2",
+    yaxis = "y2",
+    fillcolor = cols[i],
+    line = list(color = cols[i]),
+    marker = list(color = cols[i]),
+    opacity = 0.7,
+    boxpoints = "outliers",
+    showlegend = FALSE,
+    name = ""  # <-- force le nom vide
+  )
+
 }
-par(mfrow = c(1, 1))
+
+# ---- Dropdown menu ----
+buttons <- lapply(seq_len(n), function(i) {
+
+  vis <- rep(FALSE, 2 * n)
+  vis[(2*i - 1):(2*i)] <- TRUE
+
+  list(
+    method = "update",
+    args = list(
+      list(visible = vis)
+      ),
+    label = vars_quanti[i]
+  )
+})
+
+fig <- fig %>% layout(
+  updatemenus = list(
+    list(
+      type = "dropdown",
+      active = 0,
+      buttons = buttons,
+      x = 0.5,
+      y = 1.15,
+      xanchor = "center"
+    )
+  ),
+  grid = list(rows = 1, columns = 2, pattern = "independent"),
+  xaxis = list(title = "Valeurs"),
+  yaxis = list(title = "Effectifs"),
+  xaxis2 = list(title = ""),
+  yaxis2 = list(title = "Valeurs"),
+  width = 700,
+  height = 400,
+  showlegend = FALSE
+)
+
+fig
+
+
 
 ```
+
+L’analyse de la variable `marriage_duration_years` montre une distribution décroissante, avec la majorité des mariages ayant une durée relativement courte. Les effectifs diminuent progressivement lorsque la durée augmente. La durée minimale observée est de 1 ans, la maximale de 40 ans, et la médiane est de 6 ans. On remarque également quelques valeurs extrêmes entre 30 et 40 ans, qui sont isolées par rapport à la majorité des observations. Ces outliers peuvent refléter des cas particuliers de mariages très longs.
 
 ## - Histogrammes des données Qualitatives
 
 ```{r data_prepared_3, echo = FALSE, fig.align='center'}
+library(plotly)
+library(RColorBrewer)
+
 # Sélection des variables qualitatives
 vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
+n <- length(vars_quali)
 
-for (i in 0:5) {
-  # Pour chaque variable : barplot (à gauche) + pie chart (à droite)
-  par(mfrow = c(1, 2), mar = c(4, 0, 4, 0), cex = 1)
-  for (j in 1:2) {
-    var_name <- vars_quali[2*i + j]
-    counts <- table(data.brute[[var_name]])
-    
-    # Titre plus lisible
-    main_title <- gsub("_", "\n", var_name)
-    
-    ## ---- Graphique 1 : Barplot ----
-    barplot(
-      counts,
-      main = main_title,
-      col = "#58D68D",
-      border = "gray25",
-      cex.main = 0.9,
-      cex.axis = 0.8,
-      cex.names = 0.7,
-      las = 2,
-      frame.plot = FALSE
-    )
-    grid(nx = NA, ny = NULL, col = "lightgray", lty = "dotted")
-    
-    # Calcul des pourcentages
-  pct <- round(100 * counts / sum(counts), 1)
-  
-  # Couleurs
-  cols <- rainbow(length(counts))
-  
-  # Pie chart sans labels
-  pie(
-    counts,
-    main = main_title,
-    col = cols,
-    labels = NA,   # pas de labels sur les secteurs
-    cex.main = 0.9
-  )
-  
-  # Ajouter légende à droite
-  legend(
-    "topright",
-    legend = paste0(names(counts), " (", pct, "%)"),
-    fill = cols,
-    cex = 0.7,
-    bty = "n",
-    ncol = 2   # met la légende sur 2 colonnes
+fig <- plot_ly()
+
+for (i in seq_along(vars_quali)) {
+
+  var <- vars_quali[i]
+  counts <- table(data.brute[[var]])
+
+  df <- data.frame(
+    modalite = names(counts),
+    n = as.numeric(counts)
   )
 
+  df$pct <- round(100 * df$n / sum(df$n), 1)
 
+  # Palette pour les modalités
+  cols <- brewer.pal(max(3, nrow(df)), "Set2")
+  if (length(cols) < nrow(df)) {
+    cols <- colorRampPalette(cols)(nrow(df))
   }
+
+  ## ---- Pie chart ----
+  fig <- fig %>% add_pie(
+    data = df,
+    labels = ~modalite,
+    values = ~n,
+    visible = (i == 1),
+    textinfo = "label+percent",
+    marker = list(colors = cols),
+    showlegend = FALSE
+  )
 }
 
-# Revenir à 1 figure
-par(mfrow = c(1, 1))
+## ---- Dropdown menu ----
+buttons <- lapply(seq_len(n), function(i) {
+
+  vis <- rep(FALSE, n)
+  vis[i] <- TRUE
+
+  list(
+    method = "update",
+    args = list(
+      list(visible = vis)
+    ),
+    label = vars_quali[i]
+  )
+})
+
+## ---- Layout final ----
+fig <- fig %>% layout(
+  updatemenus = list(
+    list(
+      type = "dropdown",
+      active = 0,
+      buttons = buttons,
+      x = 0.5,
+      y = 1.15,
+      xanchor = "center"
+    )
+  ),
+  width = 700,
+  height = 500,
+  showlegend = FALSE
+)
+
+fig
+
 
 ```
