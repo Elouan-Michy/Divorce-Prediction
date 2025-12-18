@@ -12,6 +12,8 @@ library(muhaz)
 library(broom)
 library(flexsurv)
 library(ggfortify)
+library(plotly)
+library(RColorBrewer)
 
 
 # ---- Options ----
