@@ -5,12 +5,13 @@ suppressPackageStartupMessages(source("setup.R"))
 
 # - Analyse de survie
 
-Notre base de données comporte deux variables temporelles intéressantes à étudier :
+Notre base de données comporte une variable temporelle de durée de survie caractérisé par :
 
-- `marriage_duration_years` : Mesure la **Durée du mariage** de l'individu
-- `age_at_marriage` : Mesure **l'âge** où l'individu s'est marié
+- `marriage_duration_years` : Mesure la **Durée du mariage** de l'individu.
 
-Nous verrons donc une double analyse entre sur la 
+De plus, nous introduisons une variable \(a\) correspondant à la borne inférieure de la variable de survie. Ici, pour `marriage_duration_years`, on a \(a = 1\). Cette formalisation permet d’unifier la notation et de clarifier les domaines de définition dans les développements théoriques ultérieurs.
+
+On pose $X$ la variable aléatoire de survenue de l'évènement d'intérêt, donc le divorce. On note donc les différentes fonctions de survie et leurs interprétations par le tableau suivant :
 
 ```{r survival_without_parameters_0, echo = FALSE, fig.align='center'}
 
@@ -19,8 +20,8 @@ Nous verrons donc une double analyse entre sur la
 fonctions <- c("$S(t)$", "$H(t)$", "$h(t)$")
 
 definitions <- c(
-  "$S(t) = P(T \\geq t) = e^{-H(t)}$",
-  "$H(t) = \\int_0^t h(u)\\,du = -\\ln S(t)$",
+  "$S(t) = \\mathbb{P}(X \\gt t) = e^{-H(t)} = e^{-\\int_a^t h(u)\\,du}$",
+  "$H(t) = \\int_a^t h(u)\\,du = -\\ln S(t)$",
   "$h(t) = -\\dfrac{S'(t)}{S(t)}$"
 )
 
@@ -30,18 +31,12 @@ premier_temps <- c(
   "Risque instantané de divorce à t"
 )
 
-second_temps <- c(
-  "Probabilité de rester marié si marié à l’âge t",
-  "Risque cumulé de divorce selon âge au mariage ≤ t",
-  "Risque instantané de divorce pour un âge de mariage t"
-)
 
 # Création du tableau
 tableau <- data.frame(
   Fonction = fonctions,
   Définition = definitions,
   Durée_du_mariage = premier_temps,
-  Âge_au_mariage = second_temps,
   stringsAsFactors = FALSE
 )
 
@@ -54,14 +49,64 @@ kable(tableau, "html", caption = "📊 Interprétation et définitions des fonct
   column_spec(1, bold = TRUE, background = "#D6EAF8") %>%
   column_spec(2, background = "#EBF5FB") %>%
   column_spec(3, background = "#FDEBD0") %>%
-  column_spec(4, background = "#FCF3CF") %>%
   row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
 
 ```
 
-## - Fonction de survie S(t)
+Nos données comportent une censure : certains individus n'ont pas encore connu l'événement d'intérêt, c'est à dire qu'ils sont toujours encore mariés. Cette information est déjà inscrite dans la base de données via la variable **`divorced`**, qui indique si l'individu est divorcé ou non que l'on note :
 
-### Estimateur sans données de censure
+
+$$
+\delta_i =
+\begin{cases}
+1 & \text{si l'événement divorce est observé pour } i \\
+0 & \text{si l'observation n'est pas divorcé}
+\end{cases}
+$$
+
+## Censure
+
+Soit \(X_i\) le temps de survie réel de l'individu \(i\) (durée jusqu'à l'événement d'intérêt, ici le divorce), et \(C_i\) la **variable aléatoire du temps de censure**, représentant le moment auquel l'individu quitte l'étude ou n'a pas encore subi l'événement.  
+
+La durée réellement observée pour chaque individu dépend du type de censure :  
+
+- **Censure à droite** : 
+\[
+T_i = \min(X_i, C_i)
+\]
+- **Censure à gauche** : 
+\[
+T_i = \max(X_i, C_i)
+\]
+
+### Censure à droite
+La censure à droite se produit lorsqu'un individu **n'a pas encore subi l'événement d'intérêt** (ici le divorce) au moment de sa dernière observation (\(X_i > C_i\)).  
+Les principaux types de censure à droite sont :  
+
+- **Type I (fixe)** : tous les individus sont censurés au même moment prédéterminé.  
+- **Type II** : l'étude s'arrête dès qu'un certain nombre d'événements est observé.  
+- **Type III (aléatoire)** : le moment de censure varie d'un individu à l'autre, par exemple à cause de la fin de suivi variable, de pertes de vue ou d'arrêts de participation. Ce type est le plus courant dans les études observationnelles.
+
+### Censure à gauche
+La censure à gauche se produit lorsque l'événement **a eu lieu avant le début de l'observation**, et on ne connaît que la borne supérieure du temps de survie (\(X_i < C_i\)).  
+Elle est beaucoup plus rare dans les études humaines et moins souvent traitée dans la littérature.
+
+### Censure par intervalle
+Une censure par intervalle survient lorsqu’on sait seulement que l’événement s’est produit **entre deux dates d’observation**. Dans la pratique, elle est souvent convertie en censure à droite pour simplifier l'analyse.
+
+---
+
+Dans notre base de données, certains mariages **n'ont pas abouti à un divorce au moment de la fin de l'étude**, et le temps de suivi varie selon les individus.  
+On en déduit que les données présentent une **censure à droite de type III (aléatoire)**.  
+On suppose que cette censure est **non informative**, c'est-à-dire indépendante de la probabilité de divorce, conformément aux hypothèses classiques des modèles de survie.  
+
+Dans ce contexte, la **durée réellement observée** pour chaque mariage est donnée par :
+
+\[
+T = \min(X, C)
+\]
+
+## - Estimateur de la Fonction de survie S(t)
 
 **Estimateur empirique de la fonction de survie :**
 
@@ -73,113 +118,261 @@ $$
 - \( t_i \) = temps jusqu’à l’événement pour l’individu \( i \)  
 - \( \boldsymbol{1}_{\{t_i > t\}} \) = indicateur qui vaut 1 si l’individu n’a pas encore eu l’événement à \( t \), 0 sinon  
 
-Cet estimateur correspond simplement à la **proportion d’individus encore mariés au temps \( t \).  
+Cet estimateur correspond simplement à la proportion d’individus encore mariés au temps \( t \).  
 Il suppose qu’il **n’y a aucune donnée censurée**, c’est-à-dire que tous les individus ont eu l’événement observé.
 
+```{r iajzjbflkakf, echo = FALSE, fig.align='center'}
+# Tableau Kaplan–Meier SANS CENSURE (variance binomiale)
+km_methods_no_censor <- data.frame(
+  Méthode = c(
+    "Estimateur empirique de survie (sans censure)",
+    "Variance (loi binomiale, cas sans censure)",
+    "Intervalle de confiance plain à 95 %"
+  ),
+  
+  Formule = c(
+    # Kaplan–Meier simplifié sans censure
+    "$\\hat{S}(t) = 1 - F_n(t) = \\frac{\\text{nombre d'individus survivants à } t}{n}$",
+    
+    # Variance binomiale
+    "$\\widehat{\\text{Var}}[\\hat{S}(t)] = \\frac{\\hat S(t) (1 - \\hat S(t))}{n}$",
+    
+    # IC plain
+    "$\\text{IC}_{95\\%}(t)=
+      \\hat S(t)^{\\,
+      \\exp\\left(
+      \\pm 1.96
+      \\sqrt{
+      \\dfrac{
+      \\widehat{\\text{Var}}[\\hat S(t)]
+      }{
+      \\hat S(t)^2
+      }}
+      \\right)
+      }$"
+  ),
+  
+  Description = c(
+    "Dans le cas sans censure, Kaplan–Meier coïncide avec l’estimateur empirique de la fonction de survie.",
+    "Variance estimée selon la loi binomiale, adaptée aux données entièrement observées.",
+    "Intervalle de confiance classique basé sur la variance binomiale."
+  ),
+  
+  stringsAsFactors = FALSE
+)
+
+# Affichage du tableau
+kable(km_methods_no_censor, "html", escape = FALSE,
+      caption = "📊 Estimateur de survie sans censure, variance binomiale et intervalle de confiance plain à 95 %",
+      align = c("c","c","c")) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE, color = "black",
+              background = c("#D6EAF8", "#F9E79F", "#FDEDEC")) %>%
+  column_spec(2, width = "6cm") %>%
+  column_spec(3, width = "8cm") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
+
+```
+
+
 ---
 
-### Estimateur avec censure (Kaplan-Meier)
+## - Estimateur avec censure (Kaplan-Meier)
 
-Lorsque certains individus quittent l’étude avant l’événement (par exemple, encore mariés à la fin de l’observation),  
-on introduit la **variable de censure** :
+L'estimateur de Kaplan-Meier découle de l'idée suivante : survivre après un temps \(t_n\) revient à être vivant juste avant \(t_n\) et **ne pas subir l'événement à ce temps**. Formellement, pour \(t_0 < t_1 < \dots < t_{n-1} < t_n\) :
 
-$$
-\delta_i =
-\begin{cases}
-1 & \text{si l'événement (divorce) est observé pour } i \\
-0 & \text{si l'observation est censurée}
-\end{cases}
-$$
+La probabilité de survie jusqu’à \(t_n\) peut s’écrire en utilisant la **règle de multiplication des probabilités** :
 
-On note \( T_{1} \le T_{2} \le \dots \le T_{n} \) les temps d’observation triés et \( \delta_i \) les événements correspondants.
+\[
+\mathbb{P}(X > t_n) = \mathbb{P}(X > t_1, X > t_2, \dots, X > t_n)
+\]
 
-**Alors, l’estimateur de Kaplan-Meier s’écrit :**
+On introduit une récurrence : pour tout \(k \ge 1\),
 
-$$
-\hat{S}(t) = \prod_{T_i \le t,\, \delta_i = 1} 
-\left( 1 - \frac{1}{\sum_{j = 1}^{n} 1_{T_j \ge T_i}} \right)
-$$
+\[
+\mathbb{P}(X > t_k \mid X > t_{k-1}, \dots, X > t_1) = \mathbb{P}(X > t_k \mid X > t_{k-1})
+\]
 
-ou, de manière équivalente, en notant \( d_i \) le nombre d’événements à \( T_i \)  
-et \( n_i \) le nombre d’individus “à risque” juste avant ce temps :
+où l’égalité découle de l’indépendance conditionnelle induite par l’ordre croissant des temps.  
 
-$$
-\hat{S}(t) = \prod_{T_i \le t} 
-\left( 1 - \frac{d_i}{n_i} \right)
-$$
+Ainsi, par récurrence sur les indices \(k\) :
 
----
+\[
+\begin{aligned}
+\mathbb{P}(X > t_1, X > t_2, \dots, X > t_n) 
+&= \mathbb{P}(X > t_1) \cdot \mathbb{P}(X > t_2 \mid X > t_1) \\
+&\quad \cdot \mathbb{P}(X > t_3 \mid X > t_1, X > t_2) \cdots \mathbb{P}(X > t_n \mid X > t_1, \dots, X > t_{n-1}) \\
+&= \mathbb{P}(X > t_1) \prod_{k=2}^{n} \mathbb{P}(X > t_k \mid X > t_{k-1})
+\end{aligned}
+\]
 
-## - Fonction de survie : Kaplan-Meier
+On considère les temps d’événements distincts \(T_{(1)} < T_{(2)} < \dots < T_{(j)}\) (décès ou divorce observés) rangés par ordre croissant.  
+On définit \(T_{(0)} = 0\), la borne inférieure du temps (par exemple \(a=1\) pour la durée de mariage).  
+
+Ainsi, la probabilité de survie jusqu’au temps \(T_{(j)}\) peut s’écrire comme un **produit de probabilités conditionnelles** :
+
+\[
+\begin{aligned}
+\mathbb{P}(X > T_{(j)}) 
+&= \prod_{k=1}^{j} \mathbb{P}(X > T_{(k)} \mid X > T_{(k-1)})
+\end{aligned}
+\]
+
+Pour chaque temps d’événement \(T_{(k)}\), on s’intéresse à la probabilité conditionnelle de **subir l’événement à ce temps**, sachant que l’individu était encore à risque juste avant :
+
+\[
+\mathbb{P}(X \le T_{(k)} \mid X > T_{(k-1)})
+\]
+
+Cette quantité représente la probabilité qu’un individu qui a « survécu » jusqu’à \(T_{(k-1)}\) subisse l’événement à \(T_{(k)}\).  
+
+En pratique, on dispose des données observées :  
+
+- \(n_k\) = nombre d’individus **encore à risque** juste avant \(T_{(k)}\)  
+- \(d_k\) = nombre d’événements observés à \(T_{(k)}\)  
+
+On peut alors **estimer cette probabilité conditionnelle** par :
+
+\[
+\hat{\mathbb{P}}(X \le T_{(k)} \mid X > T_{(k-1)}) = \frac{d_k}{n_k}
+\]
+
+La probabilité de **survivre** au temps \(T_{(k)}\) est le complémentaire :
+
+\[
+\hat{q}_k = \hat{\mathbb{P}}(X \ge T_{(k)} \mid X > T_{(k-1)}) = 1 - \hat{\mathbb{P}}(X \le T_{(k)} \mid X > T_{(k-1)}) = 1 - \frac{d_k}{n_k}
+\]
+
+Enfin, en remplaçant les probabilités conditionnelles dans le produit de survie, on obtient l’**estimateur de Kaplan-Meier** (ou produit-limite) :
+
+\[
+\hat{S}(t) = \prod_{T_{(k)} \le t} \hat{q}_k = \prod_{T_{(k)} \le t} \left( 1 - \frac{d_k}{n_k} \right)
+\]
+
+Ainsi, l’estimateur de Kaplan-Meier **corrige naturellement le biais dû à la censure** et fournit une estimation non paramétrique de la fonction de survie.
+
+```{r kakuzhfdjahd, echo = FALSE, fig.align='center'}
+# Tableau Kaplan-Meier + variance + intervalle de confiance (log)
+km_methods <- data.frame(
+  Méthode = c(
+    "Kaplan-Meier",
+    "Variance de Greenwood",
+    "Intervalle de confiance log à 95 %"
+  ),
+  
+  Formule = c(
+    # Kaplan–Meier
+    "$\\hat{S}(t) = \\prod_{T_{(k)} \\le t} \\left( 1 - \\dfrac{d_k}{n_k} \\right)$",
+    
+    # Greenwood
+    "$\\widehat{\\text{Var}}\\left[\\hat{S}(t)\\right] 
+      = \\hat{S}(t)^2 
+      \\sum_{T_{(k)} \\le t} 
+      \\dfrac{d_k}{n_k (n_k - d_k)}$",
+    
+    # Intervalle log
+    "$\\text{IC}_{95\\%}(t)=
+      \\hat S(t)^{\\,
+      \\exp\\left(
+      \\pm 1.96
+      \\sqrt{
+      \\dfrac{
+      \\widehat{\\text{Var}}[\\hat S(t)]
+      }{
+      \\hat S(t)^2
+      }}
+      \\right)
+      }$"
+  ),
+  
+  Description = c(
+    "Estimateur non paramétrique de la fonction de survie basé sur les événements observés et le nombre d'individus à risque.",
+    "Variance estimée de Kaplan-Meier selon la formule de Greenwood.",
+    "Intervalle de confiance construit via une transformation logarithmique de S(t), qui est la méthode par défaut de survfit()."
+  ),
+  
+  stringsAsFactors = FALSE
+)
+
+# Affichage tableau
+kable(km_methods, "html", escape = FALSE,
+      caption = "📊 Estimateur de Kaplan-Meier, variance de Greenwood et intervalle de confiance log à 95 %",
+      align = c("c","c","c")) %>%
+  kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE, color = "black",
+              background = c("#D6EAF8", "#F9E79F", "#FDEDEC")) %>%
+  column_spec(2, width = "6cm") %>%
+  column_spec(3, width = "8cm") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
+
+
+```
 
 ```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
 # --- Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-# --- 1️⃣ SANS CENSURE
-surv_no_censor <- survfit(Surv(time, rep(1,length(time))) ~ 1)
-# summary(surv_no_censor)
+# --- Survie sans censure avec IC
+surv_no_censor <- survfit(Surv(time, rep(1, length(time))) ~ 1, conf.type = "plain")
+n_no <- length(surv_no_censor$time)
 
-# --- 2️⃣ AVEC CENSURE
-surv_censor <- survfit(Surv(time, event) ~ 1)
-# summary(surv_censor)
+# --- Survie avec censure avec IC
+surv_censor <- survfit(Surv(time, event) ~ 1, conf.type = "plain")
 
-# --- 3️⃣ PLOT COMPARATIF avec intervalle de confiance
-# --- Plot comparatif avec intervalle de confiance
-ggsurvplot_combine(
-  list("Sans censure" = surv_no_censor, "Avec censure" = surv_censor),
-  combine = TRUE,
-  conf.int = TRUE,                   # activer l'intervalle de confiance
-  conf.int.alpha = 0.25,             # transparence de la bande
-  legend.title = NULL,
-  legend.labs = c("Sans censure", "Avec censure"),
-  palette = c("#1f78b4", "#e31a1c"), # bleu et rouge plus doux
-  xlab = "Durée du mariage (années)",
-  ylab = "Probabilité de rester marié",
-  title = "Comparaison des fonctions de survie : sans et avec censure",
-  surv.median.line = "hv",           # ligne médiane horizontale/verticale
-  risk.table.height = 0.25,
-  ggtheme = theme_minimal(base_size = 14) +
-    theme(
-      plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
-      legend.position = "top",
-      legend.text = element_text(size = 12)
-    )
-)
+# --- Plot Plotly avec IC
+fig <- plot_ly() %>%
+  # Sans censure
+  add_lines(x = surv_no_censor$time[-n_no],
+            y = surv_no_censor$surv[-n_no],
+            name = "Sans censure",
+            line = list(color = "#1f78b4")) %>%
+  add_ribbons(x = surv_no_censor$time[-n_no],
+              ymin = surv_no_censor$lower[-n_no],
+              ymax = surv_no_censor$upper[-n_no],
+              fillcolor = "#1f78b433",
+              line = list(color = "transparent"),
+              showlegend = FALSE) %>%
+  # Avec censure
+  add_lines(x = surv_censor$time,
+            y = surv_censor$surv,
+            name = "Avec censure",
+            line = list(color = "#e31a1c")) %>%
+  add_ribbons(x = surv_censor$time,
+              ymin = surv_censor$lower,
+              ymax = surv_censor$upper,
+              fillcolor = "#e31a1c33",
+              line = list(color = "transparent"),
+              showlegend = FALSE) %>%
+  layout(title = "Comparaison des fonctions de survie : sans et avec censure",
+         xaxis = list(title = "Durée du mariage (années)"),
+         yaxis = list(title = "Probabilité de rester marié"),
+         legend = list(x = 0.1, y = 0.95))
+
+fig
+
 ```
 
-## Nelson-Aalen
+## - Estimateur de Nelson-Aalen
 
-### Estimateur Nelson-Aalen
-
-## 2.1 Estimateur de Nelson-Aalen
-
-L’estimateur de **Nelson-Aalen** permet d’estimer le **risque cumulatif** \(\Lambda(t)\) dans le cadre de données censurées.
-
-Soit :
-
-- \(X\) : temps jusqu’à l’événement d’intérêt (ex. divorce)  
-- \(C\) : temps de censure (ex. fin de l’étude ou perte de suivi)  
-- \(T = \min(X, C)\) : temps observé pour chaque individu  
- 
+L’estimateur de **Nelson-Aalen** permet d’estimer le **risque cumulatif** \(h(t)\) dans le cadre de données censurées.
 
 On définit :
 
-- \(H(t) = P(T > t) = P(X > t, C > t) = P(X > t)P(C > t)= S(t) G(t)\)  où \(G\) est la fonction de survie de la censure \(C\)  
+- \(H(t) = \mathbb{P}(T > t) = \mathbb{P}(X > t, C > t) = \mathbb{P}(X > t)\mathbb{P}(C > t)= S(t) G(t)\)  où \(G\) est la fonction de survie de la censure \(C\)  
 
 
-- \(H_1(t) = P(T > t, \delta = 1) = P(X > t, C > X)\)  
+- \(H_1(t) = \mathbb{P}(T > t, \delta = 1) = \mathbb{P}(X > t, C > X)\)  
 
 On peut écrire \(H_1(t)\) en fonction de la densité \(f(u)\) de \(X\) et de \(G(u)\) :
 
 \[
 \begin{aligned}
-H_1(t) &= P(X > t,\, C > X) \\
-&= E\big[ \mathbf{1}_{\{X > t\}} \cdot \mathbf{1}_{\{C > X\}} \big] \\[6pt]
-&= E\Big[ \mathbf{1}_{\{X > t\}} \, E\big[\mathbf{1}_{\{C > X\}}\mid X\big] \Big] \\[6pt]
-&= E\big[ \mathbf{1}_{\{X > t\}} \, P(C > X \mid X) \big] \\[6pt]
-&= E\big[ \mathbf{1}_{\{X > t\}} \, G(X^-) \big] \\[6pt]
+H_1(t) &= \mathbb{P}(X > t,\, C > X) \\
+&= \mathbb{E}\big[ \mathbf{1}_{\{X > t\}} \cdot \mathbf{1}_{\{C > X\}} \big] \\[6pt]
+&= \mathbb{E}\Big[ \mathbf{1}_{\{X > t\}} \, \mathbb{E}\big[\mathbf{1}_{\{C > X\}}\mid X\big] \Big] \\[6pt]
+&= \mathbb{E}\big[ \mathbf{1}_{\{X > t\}} \, \mathbb{P}(C > X \mid X) \big] \\[6pt]
+&= \mathbb{E}\big[ \mathbf{1}_{\{X > t\}} \, G(X^-) \big] \\[6pt]
 &= \displaystyle \int_{t}^{\infty} G(u^-) \, f(u)\,du \\[6pt]
 &= - \displaystyle \int_{t}^{\infty} G(u^-) \, dS(u)
 \end{aligned}
@@ -375,66 +568,7 @@ ggplot(df_merge, aes(x = time)) +
 
 ```
 
-### Estimateur de Nelson-Aalen sans et avec censure
-
-```{r survival_without_parameters_4, echo = FALSE, fig.align='center'}
-# --- Nelson-Aalen avec censure ---
-km_fit_cens <- survfit(Surv(time, event) ~ 1)
-H_NA_cens <- cumsum(km_fit_cens$n.event / km_fit_cens$n.risk)
-se_H_NA_cens <- sqrt(cumsum(km_fit_cens$n.event / (km_fit_cens$n.risk^2)))
-
-df_na_cens <- data.frame(
-  time = km_fit_cens$time,
-  H_NA = H_NA_cens,
-  H_NA_lower = H_NA_cens - 1.96 * se_H_NA_cens,
-  H_NA_upper = H_NA_cens + 1.96 * se_H_NA_cens
-)
-
-# --- Nelson-Aalen sans censure ---
-event_no_cens <- rep(1, length(time))
-km_fit_no_cens <- survfit(Surv(time, event_no_cens) ~ 1)
-H_NA_no_cens <- cumsum(km_fit_no_cens$n.event / km_fit_no_cens$n.risk)
-se_H_NA_no_cens <- sqrt(cumsum(km_fit_no_cens$n.event / (km_fit_no_cens$n.risk^2)))
-
-df_na_no_cens <- data.frame(
-  time = km_fit_no_cens$time,
-  H_NA_no_cens = H_NA_no_cens,
-  H_NA_no_cens_lower = H_NA_no_cens - 1.96 * se_H_NA_no_cens,
-  H_NA_no_cens_upper = H_NA_no_cens + 1.96 * se_H_NA_no_cens
-)
-
-# --- Fusion ---
-df_merge <- merge(df_na_cens, df_na_no_cens, by = "time", all = TRUE)
-
-# --- Tracé avec intervalles ---
-ggplot(df_merge, aes(x = time)) +
-  # ribbon pour les IC
-  geom_ribbon(aes(ymin = H_NA_lower, ymax = H_NA_upper),
-              fill = "blue", alpha = 0.15) +
-  geom_ribbon(aes(ymin = H_NA_no_cens_lower, ymax = H_NA_no_cens_upper),
-              fill = "red", alpha = 0.15) +
-  # lignes estimateurs
-  geom_line(aes(y = H_NA, color = "Avec censure"), size = 1.2) +
-  geom_line(aes(y = H_NA_no_cens, color = "Sans censure"), size = 1.2) +
-  labs(
-    title = "Estimateur de Nelson-Aalen avec et sans censure",
-    x = "Durée du mariage (années)",
-    y = "Risque cumulatif H(t)",
-    color = "Méthode"
-  ) +
-  scale_color_manual(values = c("Avec censure" = "blue", "Sans censure" = "red")) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.title = element_text(face = "bold"),
-    legend.position = "bottom"
-  )
-
-
-```
-
-
-### Estimateur de Breslow sans et avec censure
+### - Estimateur de Breslow sans et avec censure
 
 ```{r survival_without_parameters_5, echo = FALSE, fig.align='center'}
 # --- Données ---
