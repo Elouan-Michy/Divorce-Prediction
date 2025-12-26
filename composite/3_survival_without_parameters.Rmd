@@ -132,24 +132,12 @@ km_methods_no_censor <- data.frame(
   
   Formule = c(
     # Kaplan–Meier simplifié sans censure
-    "$\\hat{S}(t) = 1 - F_n(t) = \\frac{\\text{nombre d'individus survivants à } t}{n}$",
-    
+    "$\\hat{S}(t)=\\frac{1}{n}\\sum_{i=1}^{n}\\mathbf{1}_{\\{t_i\\gt t\\}}$",
     # Variance binomiale
     "$\\widehat{\\text{Var}}[\\hat{S}(t)] = \\frac{\\hat S(t) (1 - \\hat S(t))}{n}$",
     
     # IC plain
-    "$\\text{IC}_{95\\%}(t)=
-      \\hat S(t)^{\\,
-      \\exp\\left(
-      \\pm 1.96
-      \\sqrt{
-      \\dfrac{
-      \\widehat{\\text{Var}}[\\hat S(t)]
-      }{
-      \\hat S(t)^2
-      }}
-      \\right)
-      }$"
+    "$\\text{IC}_{95\\%}(t) = \\hat S(t) \\pm 1.96 \\sqrt{\\widehat{\\text{Var}}[\\hat S(t)]}$"
   ),
   
   Description = c(
@@ -271,24 +259,14 @@ km_methods <- data.frame(
       \\dfrac{d_k}{n_k (n_k - d_k)}$",
     
     # Intervalle log
-    "$\\text{IC}_{95\\%}(t)=
-      \\hat S(t)^{\\,
-      \\exp\\left(
-      \\pm 1.96
-      \\sqrt{
-      \\dfrac{
-      \\widehat{\\text{Var}}[\\hat S(t)]
-      }{
-      \\hat S(t)^2
-      }}
-      \\right)
-      }$"
+    "$\\text{IC}_{95\\%}(t) = \\hat S(t) \\pm 1.96 \\sqrt{\\widehat{\\text{Var}}[\\hat S(t)]}$"
+
   ),
   
   Description = c(
     "Estimateur non paramétrique de la fonction de survie basé sur les événements observés et le nombre d'individus à risque.",
     "Variance estimée de Kaplan-Meier selon la formule de Greenwood.",
-    "Intervalle de confiance construit via une transformation logarithmique de S(t), qui est la méthode par défaut de survfit()."
+    "Intervalle de confiance construit via une transformation logarithmique de S(t), qui est la méthode 'plain' de survfit()."
   ),
   
   stringsAsFactors = FALSE
@@ -308,6 +286,7 @@ kable(km_methods, "html", escape = FALSE,
 
 ```
 
+
 ```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
 # --- Données
 time <- data.brute$marriage_duration_years
@@ -315,41 +294,55 @@ event <- data.brute$divorced
 
 # --- Survie sans censure avec IC
 surv_no_censor <- survfit(Surv(time, rep(1, length(time))) ~ 1, conf.type = "plain")
+surv_no_censor$lower[is.na(surv_no_censor$lower)] <- 0
+surv_no_censor$upper[is.na(surv_no_censor$upper)] <- 0
+
 n_no <- length(surv_no_censor$time)
 
 # --- Survie avec censure avec IC
 surv_censor <- survfit(Surv(time, event) ~ 1, conf.type = "plain")
 
-# --- Plot Plotly avec IC
+# --- Plotly avec IC et legendgroup ---
 fig <- plot_ly() %>%
-  # Sans censure
-  add_lines(x = surv_no_censor$time[-n_no],
-            y = surv_no_censor$surv[-n_no],
-            name = "Sans censure",
-            line = list(color = "#1f78b4")) %>%
-  add_ribbons(x = surv_no_censor$time[-n_no],
-              ymin = surv_no_censor$lower[-n_no],
-              ymax = surv_no_censor$upper[-n_no],
+  
+  # --- Sans censure ---
+  add_ribbons(x = surv_no_censor$time,
+              ymin = surv_no_censor$lower,
+              ymax = surv_no_censor$upper,
               fillcolor = "#1f78b433",
               line = list(color = "transparent"),
+              legendgroup = "nocens",
               showlegend = FALSE) %>%
-  # Avec censure
-  add_lines(x = surv_censor$time,
-            y = surv_censor$surv,
-            name = "Avec censure",
-            line = list(color = "#e31a1c")) %>%
+  add_lines(x = surv_no_censor$time,
+            y = surv_no_censor$surv,
+            name = "Sans censure",
+            line = list(color = "#1f78b4", width = 2),
+            legendgroup = "nocens",
+            showlegend = TRUE) %>%
+  
+  # --- Avec censure ---
   add_ribbons(x = surv_censor$time,
               ymin = surv_censor$lower,
               ymax = surv_censor$upper,
               fillcolor = "#e31a1c33",
               line = list(color = "transparent"),
+              legendgroup = "cens",
               showlegend = FALSE) %>%
+  add_lines(x = surv_censor$time,
+            y = surv_censor$surv,
+            name = "Avec censure",
+            line = list(color = "#e31a1c", width = 2),
+            legendgroup = "cens",
+            showlegend = TRUE) %>%
+  
+  # --- Layout ---
   layout(title = "Comparaison des fonctions de survie : sans et avec censure",
          xaxis = list(title = "Durée du mariage (années)"),
          yaxis = list(title = "Probabilité de rester marié"),
-         legend = list(x = 0.1, y = 0.95))
+         legend = list(x = 0.80, y = 0.95))
 
-fig
+div(style="text-align:center;", fig)
+
 
 ```
 
@@ -473,12 +466,16 @@ on obtient l'estimateur de Breslow du risque cumulé :
 
 
 ```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
-# Tableau combiné Nelson-Aalen + Breslow
+# --- Tableau combiné Nelson-Aalen + Breslow + Variance ---
 risk_methods <- data.frame(
   Méthode = c("Nelson-Aalen", "Breslow"),
   Formule = c(
-    "$\\hat{H}_{NA}(t) = \\sum_{t_i \\le t} \\dfrac{d_i}{n_i}$",
-    "$\\hat{H}_{\\text{Breslow}}(t) = - \\sum_{t_i \\le t} \\log\\left(1 - \\dfrac{d_i}{n_i}\\right)$"
+    "$\\hat{H}_{NA}(t) = \\sum_{t_k \\le t} \\dfrac{d_k}{n_k}$",
+    "$\\hat{H}_{\\text{Breslow}}(t) = - \\sum_{t_k \\le t} \\log\\left(1 - \\dfrac{d_k}{n_k}\\right)$"
+  ),
+  Variance = c(
+    "$\\text{Var}(\\hat{H}_{NA}(t)) = \\sum_{t_k \\le t} \\dfrac{d_k}{n_k^2}$",
+    "$\\text{Var}(\\hat{H}_{\\text{Breslow}}(t)) = \\sum_{t_k \\le t} \\dfrac{d_k}{n_k(n_k - d_k)}$"
   ),
   Description = c(
     "Estimateur non paramétrique basé sur les événements observés et le nombre de sujets à risque.",
@@ -489,15 +486,16 @@ risk_methods <- data.frame(
 
 kable(risk_methods, "html", escape = FALSE,
       caption = "📊 Méthodes d’estimation du risque cumulatif : Nelson-Aalen et Breslow",
-      align = c("c","c","c")) %>%
+      align = c("c","c","c","c")) %>%
   kable_styling(bootstrap_options = c("striped","hover","condensed"), full_width = FALSE) %>%
   
-  # Style colonne Méthode (différencié)
+  # Style colonne Méthode
   column_spec(1, bold = TRUE, color = "black", background = c("#D6EAF8", "#F9E79F")) %>%
   
   # Largeur colonnes
-  column_spec(2, width = "6cm") %>%
-  column_spec(3, width = "8cm") %>%
+  column_spec(2, width = "5.5cm") %>%
+  column_spec(3, width = "5.5cm") %>%
+  column_spec(4, width = "8cm") %>%
   
   # Style ligne d'en-tête
   row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
@@ -505,153 +503,166 @@ kable(risk_methods, "html", escape = FALSE,
 
 ```
 
+
 ```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
-# --- Données
-time  <- data.brute$marriage_duration_years
-event <- data.brute$divorced
-
-km_fit <- survfit(Surv(time, event) ~ 1)
-H_NA <- cumsum(km_fit$n.event / km_fit$n.risk)  # cumhaz de base
-se_H_NA <- sqrt(cumsum(km_fit$n.event / (km_fit$n.risk^2)))  # Greenwood approx
-
-df_na <- data.frame(
-  time = km_fit$time,
-  H_NA = H_NA,
-  H_NA_lower = H_NA - 1.96 * se_H_NA,
-  H_NA_upper = H_NA + 1.96 * se_H_NA
-)
-
-
-# --- Breslow : H(t) = -log(S(t))
-km_fit <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
-
-df_breslow <- data.frame(
-  time = km_fit$time,
-  H_Breslow = -log(km_fit$surv),
-  H_Breslow_lower = -log(km_fit$upper),
-  H_Breslow_upper = -log(km_fit$lower)
-)
-
-# --- Fusion
-df_merge <- merge(df_na, df_breslow, by = "time", all = TRUE)
-
-library(ggplot2)
-
-ggplot(df_merge, aes(x = time)) +
-
-  # --- Nelson-Aalen avec IC ---
-  geom_ribbon(aes(ymin = H_NA_lower, ymax = H_NA_upper),
-              fill = "red", alpha = 0.15) +
-  geom_line(aes(y = H_NA, color = "Nelson-Aalen"), size = 1.2) +
-
-  # --- Breslow avec IC ---
-  geom_ribbon(aes(ymin = H_Breslow_lower, ymax = H_Breslow_upper),
-              fill = "blue", alpha = 0.15) +
-  geom_line(aes(y = H_Breslow, color = "Breslow"),
-            size = 1.2) +
-
-  labs(
-    title = "Comparaison des Estimateurs du Risque Cumulatif\nAvec intervalles de confiance à 95%",
-    x = "Durée du mariage (années)",
-    y = "Risque cumulatif H(t)",
-    color = "Méthode"
-  ) +
-  scale_color_manual(values = c("Nelson-Aalen" = "red", "Breslow" = "blue")) +
-
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.title = element_text(face = "bold"),
-    legend.position = "bottom"
-  )
-
-
-```
-
-### - Estimateur de Breslow sans et avec censure
-
-```{r survival_without_parameters_5, echo = FALSE, fig.align='center'}
 # --- Données ---
 time  <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-# --- Breslow avec censure ---
-km_fit_cens <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
-df_breslow_cens <- data.frame(
-  time = km_fit_cens$time,
-  H_Breslow = -log(km_fit_cens$surv),
-  H_Breslow_lower = -log(km_fit_cens$upper),
-  H_Breslow_upper = -log(km_fit_cens$lower)
+# --- 1️⃣ Avec censure ---
+km_cens <- survfit(Surv(time, event) ~ 1)
+
+# Nelson-Aalen
+H_NA_cens <- cumsum(km_cens$n.event / km_cens$n.risk)
+se_H_NA_cens <- sqrt(cumsum(km_cens$n.event / (km_cens$n.risk^2)))
+df_NA_cens <- data.frame(
+  time = km_cens$time,
+  H = H_NA_cens,
+  lower = H_NA_cens - 1.96 * se_H_NA_cens,
+  upper = H_NA_cens + 1.96 * se_H_NA_cens
 )
 
-# --- Breslow sans censure ---
-event_no_cens <- rep(1, length(time))  # tout le monde a eu l'événement
-km_fit_no_cens <- survfit(Surv(time, event_no_cens) ~ 1, type = "kaplan-meier")
-df_breslow_no_cens <- data.frame(
-  time = km_fit_no_cens$time,
-  H_Breslow_no_cens = -log(km_fit_no_cens$surv),
-  H_Breslow_no_cens_lower = -log(km_fit_no_cens$upper),
-  H_Breslow_no_cens_upper = -log(km_fit_no_cens$lower)
+# Breslow
+km_bres_cens <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
+df_Bres_cens <- data.frame(
+  time = km_bres_cens$time,
+  H = -log(km_bres_cens$surv),
+  lower = -log(km_bres_cens$upper),
+  upper = -log(km_bres_cens$lower)
 )
 
-# --- Fusion ---
-df_merge <- merge(df_breslow_cens, df_breslow_no_cens, by = "time", all = TRUE)
+# --- 2️⃣ Sans censure ---
+km_nocens <- survfit(Surv(time, rep(1,length(time))) ~ 1)
 
-# --- Tracé avec intervalles de confiance ---
-ggplot(df_merge, aes(x = time)) +
-  # ribbons IC
-  geom_ribbon(aes(ymin = H_Breslow_lower, ymax = H_Breslow_upper),
-              fill = "blue", alpha = 0.15) +
-  geom_ribbon(aes(ymin = H_Breslow_no_cens_lower, ymax = H_Breslow_no_cens_upper),
-              fill = "red", alpha = 0.15) +
-  # lignes estimateurs
-  geom_line(aes(y = H_Breslow, color = "Breslow avec censure"), size = 1.2) +
-  geom_line(aes(y = H_Breslow_no_cens, color = "Breslow sans censure"), size = 1.2) +
-  labs(
-    title = "Estimateur de Breslow : avec et sans censure",
-    x = "Durée du mariage (années)",
-    y = "Risque cumulatif H(t)",
-    color = "Méthode"
-  ) +
-  scale_color_manual(values = c("Breslow avec censure" = "blue", "Breslow sans censure" = "red")) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.title = element_text(face = "bold"),
-    legend.position = "bottom"
+# Nelson-Aalen
+H_NA_nocens <- cumsum(km_nocens$n.event / km_nocens$n.risk)
+se_H_NA_nocens <- sqrt(cumsum(km_nocens$n.event / (km_nocens$n.risk^2)))
+df_NA_nocens <- data.frame(
+  time = km_nocens$time,
+  H = H_NA_nocens,
+  lower = H_NA_nocens - 1.96 * se_H_NA_nocens,
+  upper = H_NA_nocens + 1.96 * se_H_NA_nocens
+)
+
+# Breslow
+km_bres_nocens <- survfit(Surv(time, rep(1,length(time))) ~ 1, type = "kaplan-meier")
+df_Bres_nocens <- data.frame(
+  time = km_bres_nocens$time,
+  H = -log(km_bres_nocens$surv),
+  lower = -log(km_bres_nocens$upper),
+  upper = -log(km_bres_nocens$lower)
+)
+
+# --- Plot Plotly avec IC et legendgroup ---
+fig <- plot_ly() %>%
+  
+  # --- Avec censure ---
+  # Nelson-Aalen
+  add_ribbons(data = df_NA_cens, x = ~time, ymin = ~lower, ymax = ~upper,
+              fillcolor = "rgba(255,0,0,0.2)", line = list(color = 'transparent'),
+              legendgroup = "NA_cens", showlegend = FALSE) %>%
+  add_lines(data = df_NA_cens, x = ~time, y = ~H,
+            line = list(color = "red", width = 2),
+            name = "Nelson-Aalen avec censure",
+            legendgroup = "NA_cens", showlegend = TRUE) %>%
+  
+  # Breslow
+  add_ribbons(data = df_Bres_cens, x = ~time, ymin = ~lower, ymax = ~upper,
+              fillcolor = "rgba(0,0,255,0.2)", line = list(color = 'transparent'),
+              legendgroup = "Bres_cens", showlegend = FALSE) %>%
+  add_lines(data = df_Bres_cens, x = ~time, y = ~H,
+            line = list(color = "blue", width = 2),
+            name = "Breslow avec censure",
+            legendgroup = "Bres_cens", showlegend = TRUE) %>%
+  
+  # --- Sans censure ---
+  # Nelson-Aalen
+  add_ribbons(data = df_NA_nocens, x = ~time, ymin = ~lower, ymax = ~upper,
+              fillcolor = "rgba(255,165,0,0.2)", line = list(color = 'transparent'),
+              legendgroup = "NA_nocens", showlegend = FALSE) %>%
+  add_lines(data = df_NA_nocens, x = ~time, y = ~H,
+            line = list(color = "orange", width = 2),
+            name = "Nelson-Aalen sans censure",
+            legendgroup = "NA_nocens", showlegend = TRUE) %>%
+  
+  # Breslow
+  add_ribbons(data = df_Bres_nocens, x = ~time[-length(df_Bres_nocens$time)],
+              ymin = ~lower[-length(df_Bres_nocens$lower)],
+              ymax = ~upper[-length(df_Bres_nocens$upper)],
+              fillcolor = "rgba(0,128,0,0.2)", line = list(color = 'transparent'),
+              legendgroup = "Bres_nocens", showlegend = FALSE) %>%
+  add_lines(data = df_Bres_nocens, x = ~time[-length(df_Bres_nocens$time)],
+            y = ~H[-length(df_Bres_nocens$H)],
+            line = list(color = "green", width = 2),
+            name = "Breslow sans censure",
+            legendgroup = "Bres_nocens", showlegend = TRUE) %>%
+  
+  # --- Layout ---
+  layout(
+    title = "Risque cumulatif : avec et sans censure (Nelson-Aalen & Breslow)",
+    xaxis = list(title = "Durée du mariage (années)"),
+    yaxis = list(title = "Risque cumulatif H(t)"),
+    legend = list(orientation = "v", x = 0.1, y = 1)
   )
 
+div(style="text-align:center;", fig)
+
 ```
+
+### - Estimateur de la fonction du risque instanné (Nelson-Aalen)
 
 ```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
 # --- Données ---
-time  <- data.brute$marriage_duration_years
+time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-fit <- survfit(Surv(time, event) ~ 1, type = "kaplan-meier")
-
-# --- Estimation de h(t) ---
-# h(t_i) = di / Yi
-hazard <- fit$n.event / fit$n.risk
-
-# --- Création d'un data.frame pour ggplot ---
-df_hazard <- data.frame(
-  time = fit$time,
-  hazard = hazard
+# --- Hazard instantané Nelson-Aalen avec censure ---
+fit_cens <- survfit(Surv(time, event) ~ 1)
+h_cens <- fit_cens$n.event / fit_cens$n.risk
+se_h_cens <- sqrt(fit_cens$n.event / (fit_cens$n.risk^2))
+df_cens <- data.frame(
+  time = fit_cens$time,
+  hazard = h_cens,
+  lower = h_cens - 1.96 * se_h_cens,
+  upper = h_cens + 1.96 * se_h_cens
 )
 
-# --- Tracé ---
-ggplot(df_hazard, aes(x = time, y = hazard)) +
-  geom_step(color = "darkgreen", size = 1.2) +
-  labs(
-    title = "Estimation du taux de risque instantané h(t)",
-    x = "Durée du mariage (années)",
-    y = "Taux de risque h(t)"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(
-    plot.title = element_text(hjust = 0.5, face = "bold"),
-    axis.title = element_text(face = "bold")
+# --- Hazard instantané Nelson-Aalen sans censure ---
+fit_nocens <- survfit(Surv(time, rep(1, length(time))) ~ 1)
+h_nocens <- fit_nocens$n.event / fit_nocens$n.risk
+se_h_nocens <- sqrt(fit_nocens$n.event / (fit_nocens$n.risk^2))
+df_nocens <- data.frame(
+  time = fit_nocens$time,
+  hazard = h_nocens,
+  lower = h_nocens - 1.96 * se_h_nocens,
+  upper = h_nocens + 1.96 * se_h_nocens
+)
+
+# --- Plotly avec IC et legendgroup ---
+fig <- plot_ly() %>%
+  # Ribbon Sans censure
+  add_ribbons(data = df_nocens, x = ~time, ymin = ~lower, ymax = ~upper,
+              fillcolor = 'rgba(0,0,255,0.2)', line = list(color = 'transparent'),
+              legendgroup = "nocens", showlegend = FALSE) %>%
+  # Courbe centrale Sans censure
+  add_trace(data = df_nocens, x = ~time, y = ~hazard, type = 'scatter', mode = 'lines',
+            line = list(color = 'blue', width = 2), name = "Sans censure",
+            legendgroup = "nocens", showlegend = TRUE) %>%
+  # Ribbon Avec censure
+  add_ribbons(data = df_cens, x = ~time, ymin = ~lower, ymax = ~upper,
+              fillcolor = 'rgba(0,128,0,0.2)', line = list(color = 'transparent'),
+              legendgroup = "cens", showlegend = FALSE) %>%
+  # Courbe centrale Avec censure
+  add_trace(data = df_cens, x = ~time, y = ~hazard, type = 'scatter', mode = 'lines',
+            line = list(color = 'darkgreen', width = 2), name = "Avec censure",
+            legendgroup = "cens", showlegend = TRUE) %>%
+  layout(
+    title = "Risque instantané Nelson-Aalen avec IC 95%",
+    xaxis = list(title = "Durée du mariage (années)"),
+    yaxis = list(title = "Taux de risque h(t)"),
+    legend = list(orientation = "v", x = 0.1, y = 1)
   )
+
+div(style = "text-align:center;", fig)
 
 ```
