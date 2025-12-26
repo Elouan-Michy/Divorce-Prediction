@@ -14,7 +14,7 @@ library(flexsurv)
 library(ggfortify)
 library(plotly)
 library(RColorBrewer)
-
+library(htmltools)
 
 # ---- Options ----
 options(digits = 4)
