@@ -121,7 +121,7 @@ $$
 Cet estimateur correspond simplement à la proportion d’individus encore mariés au temps \( t \).  
 Il suppose qu’il **n’y a aucune donnée censurée**, c’est-à-dire que tous les individus ont eu l’événement observé.
 
-```{r iajzjbflkakf, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
 # Tableau Kaplan–Meier SANS CENSURE (variance binomiale)
 km_methods_no_censor <- data.frame(
   Méthode = c(
@@ -239,7 +239,7 @@ Enfin, en remplaçant les probabilités conditionnelles dans le produit de survi
 
 Ainsi, l’estimateur de Kaplan-Meier **corrige naturellement le biais dû à la censure** et fournit une estimation non paramétrique de la fonction de survie.
 
-```{r kakuzhfdjahd, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
 # Tableau Kaplan-Meier + variance + intervalle de confiance (log)
 km_methods <- data.frame(
   Méthode = c(
@@ -287,7 +287,7 @@ kable(km_methods, "html", escape = FALSE,
 ```
 
 
-```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
 # --- Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
@@ -342,6 +342,342 @@ fig <- plot_ly() %>%
          legend = list(x = 0.80, y = 0.95))
 
 div(style="text-align:center;", fig)
+
+
+```
+
+## Estimateur de survie avec covariables
+
+Dans cette section, nous évaluons la fonction de survie en fonction de différentes variables explicatives afin de déterminer si certains groupes ont une influence sur la courbe de survie de Kaplan–Meier. 
+
+Nous réaliserons des tests d'hypothèses pour vérifier si les courbes de survie diffèrent significativement entre les groupes. 
+
+En particulier, nous utiliserons des tests tels que le **Log-Rank** ou le **test de Gehan–Wilcoxon**, selon le type de covariable étudiée.
+
+
+```{r survival_without_parameters_4, echo = FALSE, fig.align='center'}
+# --- Données
+time1 <- data.brute$marriage_duration_years[data.brute$mental_health_issues==0]
+event1 <- data.brute$divorced[data.brute$mental_health_issues==0]
+
+time2 <- data.brute$marriage_duration_years[data.brute$mental_health_issues==1]
+event2 <- data.brute$divorced[data.brute$mental_health_issues==1]
+
+
+# --- Survie avec censure avec IC
+surv_censor1 <- survfit(Surv(time1, event1) ~ 1, conf.type = "plain")
+surv_censor2 <- survfit(Surv(time2, event2) ~ 1, conf.type = "plain")
+
+# --- Plotly avec IC et legendgroup ---
+fig <- plot_ly() %>%
+
+  # --- sans infidéité
+  add_ribbons(x = surv_censor1$time,
+              ymin = surv_censor1$lower,
+              ymax = surv_censor1$upper,
+              fillcolor = "#e31a1c33",
+              line = list(color = "transparent"),
+              legendgroup = "noinfi",
+              showlegend = FALSE) %>%
+  add_lines(x = surv_censor1$time,
+            y = surv_censor1$surv,
+            name = "Sans problème de santé mentale",
+            line = list(color = "#e31a1c", width = 2),
+            legendgroup = "noinfi",
+            showlegend = TRUE) %>%
+  
+  # --- Avec infidélité
+  add_ribbons(x = surv_censor2$time,
+              ymin = surv_censor2$lower,
+              ymax = surv_censor2$upper,
+              fillcolor = "#1f78b433",
+              line = list(color = "transparent"),
+              legendgroup = "infi",
+              showlegend = FALSE) %>%
+  add_lines(x = surv_censor2$time,
+            y = surv_censor2$surv,
+            name = "Avec problème de santé mentale",
+            line = list(color = "#1f78b4", width = 2),
+            legendgroup = "infi",
+            showlegend = TRUE) %>%
+  
+  # --- Layout ---
+  layout(title = "Fonctions de survie de Kaplan Meier sans et avec problème de santé mentale",
+         xaxis = list(title = "Durée du mariage (années)"),
+         yaxis = list(title = "Probabilité de rester marié"),
+         legend = list(x = 0.80, y = 0.95))
+
+div(style="text-align:center;", fig)
+
+```
+
+Dans ce graphique, les courbes de survie ont été séparées selon la présence ou l'absence d'un problème de santé mentale.  
+
+Nous posons les hypothèses suivantes pour comparer les groupes :
+
+$$
+\begin{cases}
+H_0 : S_1(t) = S_2(t), & \text{pour tout } t \\
+H_1 : S_1(t) \neq S_2(t), & \text{pour au moins un } t
+\end{cases}
+$$
+
+où \(S_1(t)\) est la fonction de survie pour les individus **sans problème de santé mentale** et \(S_2(t)\) pour ceux **avec problème de santé mentale**.  
+
+Pour tester ces hypothèses, nous appliquons le **test du Log-Rank**, qui permet de comparer les fonctions de survie entre groupes.
+
+
+On cherche à tester l’hypothèse :  
+
+$$
+H_0 : S_A(t) = S_B(t) \quad \forall t,
+$$
+
+c’est-à-dire que les fonctions de survie des deux groupes sont identiques. Sous $H_0$, la proportion attendue de décès parmi les sujets à risque est la même dans les deux groupes à chaque instant de décès $T_i$.
+
+Pour chaque temps $T_i$ :  
+
+- $D_{Ai}$ : nombre d’événements (décès) observés dans le groupe $A$  
+- $D_{Bi}$ : nombre d’événements dans le groupe $B$  
+- $d_i = D_{Ai} + D_{Bi}$ : nombre total d’événements à $T_i$  
+- $n_{Ai}$, $n_{Bi}$, $n_i = n_{Ai}+n_{Bi}$ : nombre d’individus à risque dans chaque groupe et total  
+
+Sous $H_0$, $D_{Ai}$ suit une loi hypergéométrique avec :  
+
+$$
+\text{Espérance : } E(D_{Ai}) = \frac{n_{Ai} \, d_i}{n_i}, \qquad
+\text{Variance : } V(D_{Ai}) = \frac{(n_i - d_i)}{n_i - 1} \frac{d_i n_{Ai} n_{Bi}}{n_i^2}
+$$
+
+Ainsi, les écarts $D_{Ai} - E(D_{Ai})$ suivent asymptotiquement une loi normale :  
+
+$$
+D_{Ai} - E(D_{Ai}) \sim \mathcal{N}(0, V(D_{Ai}))
+$$
+
+et  
+
+$$
+\frac{(D_{Ai} - E(D_{Ai}))^2}{V(D_{Ai})} \sim \chi^2_1 \quad \text{(asymptotiquement)}.
+$$
+
+
+Soient des pondérations $w_i$ pour chaque temps $T_i$ :  
+
+$$
+U = \sum_{i=1}^{N} w_i \, (D_{Ai} - E(D_{Ai}))
+$$
+
+Alors, sous $H_0$, $U$ suit asymptotiquement une loi normale :  
+
+$$
+U \sim \mathcal{N}\Big(0, \sum_{i=1}^{N} w_i^2 V(D_{Ai}) \Big)
+$$
+
+La statistique de test associée :  
+
+$$
+\chi^2_0 = \frac{\Big( \sum_{i=1}^{N} w_i (D_{Ai} - E(D_{Ai})) \Big)^2}{\sum_{i=1}^{N} w_i^2 V(D_{Ai})} \sim \chi^2_1 \quad \text{(asymptotiquement)}
+$$
+
+- **Test du Log-Rank** : $w_i = 1$  
+  - Poids égaux pour tous les décès, peu importe le temps.  
+- **Test de Gehan** : $w_i = n_i$  
+  - Poids plus élevés pour les décès précoces.  
+- **Test de Peto-Prentice** :  
+$$
+w_i = \prod_{k=1}^{i} \frac{n_k}{n_k + d_k}
+$$  
+  - Poids inspirés de l’estimateur Kaplan–Meier, favorisant aussi les événements précoces.  
+
+**Remarques importantes :**  
+1. Les tests sont valides uniquement si les courbes de survie ne se croisent pas.  
+2. Le Log-Rank est le test le plus couramment utilisé en pratique.  
+3. Il existe des versions approchées du Log-Rank pour des calculs manuels.
+
+
+
+
+
+```{r survival_without_parameters_5, echo = FALSE, }
+# vecteurs concaténés
+time  <- c(time1, time2)
+event <- c(event1, event2)
+
+# facteur groupe
+group <- factor(c(
+  rep("no_mental_health_issue", length(time1)),
+  rep("mental_health_issue", length(time2))
+))
+
+# test du log-rank (khi-deux)
+res <- survdiff(Surv(time, event) ~ group, rho = 0)
+res
+```
+
+
+```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
+# --- Données
+time1 <- data.brute$marriage_duration_years[data.brute$education_level=="Bachelor"]
+event1 <- data.brute$divorced[data.brute$education_level=="Bachelor"]
+
+time2 <- data.brute$marriage_duration_years[data.brute$education_level=="High School"]
+event2 <- data.brute$divorced[data.brute$education_level=="High School"]
+
+time3 <- data.brute$marriage_duration_years[data.brute$education_level=="Master"]
+event3 <- data.brute$divorced[data.brute$education_level=="Master"]
+
+time4 <- data.brute$marriage_duration_years[data.brute$education_level=="PhD"]
+event4 <- data.brute$divorced[data.brute$education_level=="PhD"]
+
+time5 <- data.brute$marriage_duration_years[data.brute$education_level=="No Formal Education"]
+event5 <- data.brute$divorced[data.brute$education_level=="No Formal Education"]
+
+
+# --- Survie avec censure avec IC
+surv_censor1 <- survfit(Surv(time1, event1) ~ 1, conf.type = "plain")
+surv_censor2 <- survfit(Surv(time2, event2) ~ 1, conf.type = "plain")
+surv_censor3 <- survfit(Surv(time3, event3) ~ 1, conf.type = "plain")
+surv_censor4 <- survfit(Surv(time4, event4) ~ 1, conf.type = "plain")
+surv_censor5 <- survfit(Surv(time5, event5) ~ 1, conf.type = "plain")
+
+cols <- c(
+  "Bachelor" = "#1f77b4",
+  "High School" = "#e31a1c",
+  "Master" = "#33a02c",
+  "PhD" = "#ff7f00",
+  "No Formal Education" = "#6a3d9a"
+)
+
+
+# --- Plotly avec IC et legendgroup ---
+fig <- plot_ly() %>%
+  
+  # Bachelor
+  add_ribbons(
+    x = surv_censor1$time,
+    ymin = surv_censor1$lower,
+    ymax = surv_censor1$upper,
+    fillcolor = paste0(cols["Bachelor"], "33"),
+    line = list(color = "transparent"),
+    legendgroup = "Bachelor",
+    showlegend = FALSE
+  ) %>%
+  add_lines(
+    x = surv_censor1$time,
+    y = surv_censor1$surv,
+    name = "Bachelor",
+    line = list(color = cols["Bachelor"], width = 2),
+    legendgroup = "Bachelor",
+    showlegend = TRUE
+  ) %>%
+  
+  # High School
+  add_ribbons(
+    x = surv_censor2$time,
+    ymin = surv_censor2$lower,
+    ymax = surv_censor2$upper,
+    fillcolor = paste0(cols["High School"], "33"),
+    line = list(color = "transparent"),
+    legendgroup = "High School",
+    showlegend = FALSE
+  ) %>%
+  add_lines(
+    x = surv_censor2$time,
+    y = surv_censor2$surv,
+    name = "High School",
+    line = list(color = cols["High School"], width = 2),
+    legendgroup = "High School",
+    showlegend = TRUE
+  ) %>%
+  
+  # Master
+  add_ribbons(
+    x = surv_censor3$time,
+    ymin = surv_censor3$lower,
+    ymax = surv_censor3$upper,
+    fillcolor = paste0(cols["Master"], "33"),
+    line = list(color = "transparent"),
+    legendgroup = "Master",
+    showlegend = FALSE
+  ) %>%
+  add_lines(
+    x = surv_censor3$time,
+    y = surv_censor3$surv,
+    name = "Master",
+    line = list(color = cols["Master"], width = 2),
+    legendgroup = "Master",
+    showlegend = TRUE
+  ) %>%
+  
+  # PhD
+  add_ribbons(
+    x = surv_censor4$time,
+    ymin = surv_censor4$lower,
+    ymax = surv_censor4$upper,
+    fillcolor = paste0(cols["PhD"], "33"),
+    line = list(color = "transparent"),
+    legendgroup = "PhD",
+    showlegend = FALSE
+  ) %>%
+  add_lines(
+    x = surv_censor4$time,
+    y = surv_censor4$surv,
+    name = "PhD",
+    line = list(color = cols["PhD"], width = 2),
+    legendgroup = "PhD",
+    showlegend = TRUE
+  ) %>%
+  
+  # No formal education
+  add_ribbons(
+    x = surv_censor5$time,
+    ymin = surv_censor5$lower,
+    ymax = surv_censor5$upper,
+    fillcolor = paste0(cols["No Formal Education"], "33"),
+    line = list(color = "transparent"),
+    legendgroup = "No Formal Education",
+    showlegend = FALSE
+  ) %>%
+  add_lines(
+    x = surv_censor5$time,
+    y = surv_censor5$surv,
+    name = "No formal education",
+    line = list(color = cols["No Formal Education"], width = 2),
+    legendgroup = "No Formal Education",
+    showlegend = TRUE
+  ) %>%
+  
+  layout(
+    title = "Fonctions de survie par niveau d'éducation",
+    xaxis = list(title = "Durée du mariage (années)"),
+    yaxis = list(title = "Probabilité de rester marié"),
+    legend = list(x = 0.80, y = 0.95)
+  )
+
+div(style="text-align:center;", fig)
+
+```
+
+```{r survival_without_parameters_7, echo = FALSE}
+
+```
+
+
+```{r survival_without_parameters_8, echo = FALSE, }
+# vecteurs concaténés
+time  <- c(time4, time5)
+event <- c(event4, event5)
+
+# facteur groupe
+group <- factor(c(
+  rep("PhD", length(time4)),
+  rep("No Formal Education", length(time5))
+))
+
+# test du log-rank (khi-deux)
+res <- survdiff(Surv(time, event) ~ group, rho = 0)
+res
 
 
 ```
@@ -465,7 +801,7 @@ on obtient l'estimateur de Breslow du risque cumulé :
 \(\hat{H}_{NA}(t)=\sum_{t_i\le t}\dfrac{d_i}{n_i}\) lorsque les sauts sont petits.
 
 
-```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_9, echo = FALSE, fig.align='center'}
 # --- Tableau combiné Nelson-Aalen + Breslow + Variance ---
 risk_methods <- data.frame(
   Méthode = c("Nelson-Aalen", "Breslow"),
@@ -504,7 +840,7 @@ kable(risk_methods, "html", escape = FALSE,
 ```
 
 
-```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_10, echo = FALSE, fig.align='center'}
 # --- Données ---
 time  <- data.brute$marriage_duration_years
 event <- data.brute$divorced
@@ -611,7 +947,7 @@ div(style="text-align:center;", fig)
 
 ### - Estimateur de la fonction du risque instanné (Nelson-Aalen)
 
-```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_11, echo = FALSE, fig.align='center'}
 # --- Données ---
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
