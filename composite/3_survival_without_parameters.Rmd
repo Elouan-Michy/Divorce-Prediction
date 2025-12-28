@@ -286,6 +286,7 @@ kable(km_methods, "html", escape = FALSE,
 
 ```
 
+### - Graphique Kaplan-Meier
 
 ```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
 # --- Données
@@ -346,13 +347,120 @@ div(style="text-align:center;", fig)
 
 ```
 
+Pour la courbe sans censure, la probabilité de rester marié diminue progressivement avec l’augmentation de la durée du mariage. Par exemple, après 1 an de mariage, les couples ont environ 82 % de rester mariés, mais cette proportion tombe à 32 % après 10 ans et approche de zéro après 36 à 40 ans. Les intervalles de confiance sont étroits au début car beaucoup de couples sont encore à risque. Comme les individus censurés ne sont pas pris en compte, cette estimation sous‑estime la survie réelle.
+
+Pour la courbe avec censure, la probabilité de rester marié est plus élevée car les couples censurés (par exemple ceux pour lesquels on ne connaît pas la fin du mariage) ne sont pas considérés comme ayant divorcé. Après 1 an de mariage, les couples ont une chance de 93 % de rester mariés. Cette proportion descend à 64 % après 10 ans et à environ 10 % après 40 ans. Les intervalles de confiance s’élargissent légèrement avec la durée du mariage car moins de couples restent à risque. Cette estimation correspond à l’estimateur de Kaplan‑Meier et reflète mieux la survie réelle des mariages dans la population étudiée.
+
+En résumé, sans censure, la courbe montre la survie brute et sous-estime la durée réelle des mariages, tandis que la courbe avec censure ajuste pour les mariages dont la fin n’a pas été observée, donnant une estimation plus fiable de la probabilité de rester marié dans le temps.
+
 ## Estimateur de survie avec covariables
 
 Dans cette section, nous évaluons la fonction de survie en fonction de différentes variables explicatives afin de déterminer si certains groupes ont une influence sur la courbe de survie de Kaplan–Meier. 
 
 Nous réaliserons des tests d'hypothèses pour vérifier si les courbes de survie diffèrent significativement entre les groupes. 
 
-En particulier, nous utiliserons des tests tels que le **Log-Rank** ou le **test de Gehan–Wilcoxon**, selon le type de covariable étudiée.
+En particulier, nous utiliserons des tests tels que le **Log-Rank** ou le **test de Petro & Prentice**, selon le type de covariable étudiée.
+
+### Cas général de comparaison de plusieurs groupes
+
+On considère \(k\) groupes de survie :
+
+\[
+S_1(t),\dots,S_k(t)
+\]
+
+Hypothèses globales :
+
+\[
+\begin{cases}
+H_0 : S_1(t)=\dots=S_k(t), & \forall t \\
+H_1 : \exists r,s,t \text{ tels que } S_r(t)\neq S_s(t)
+\end{cases}
+\]
+
+Soient les temps distincts de décès :
+
+\[
+T_1 < \dots < T_N
+\]
+
+Pour chaque temps \(T_i\) et chaque groupe \(g=1,\dots,k\) :
+
+- \(d_{gi}\) = nombre de décès observés dans le groupe \(g\) au temps \(T_i\)
+- \(n_{gi}\) = nombre d’individus à risque dans le groupe \(g\) juste avant \(T_i\)
+
+Sommes sur les groupes :
+
+\[
+d_i = \sum_{g=1}^k d_{gi}, \quad n_i = \sum_{g=1}^k n_{gi}
+\]
+
+Variables aléatoires associées :
+
+\[
+D_{gi} \text{ dont la valeur observée est } d_{gi}
+\]
+
+
+On empile les \(k\) nombres de décès observés au temps \(i\) :
+
+\[
+\mathbf{D}_i =
+\begin{pmatrix}
+D_{1i}\\
+\vdots\\
+D_{ki}
+\end{pmatrix} \in \mathbb{R}^k
+\]
+
+Sous \(H_0\), l’espérance conditionnelle :
+
+\[
+\mathbb{E}(\mathbf{D}_i) = \frac{d_i}{n_i} 
+\begin{pmatrix}
+n_{1i} \\ \vdots \\ n_{ki}
+\end{pmatrix}, \quad 
+\mathbb{E}(D_{gi}) = \frac{n_{gi} d_i}{n_i}
+\]
+
+
+\[
+\mathbf{V}_i = \mathbb{V}(\mathbf{D}_i) =
+\frac{n_i - d_i}{n_i - 1} \cdot \frac{d_i}{n_i^2} 
+\Big(
+\begin{pmatrix} n_{1i} & n_{2i} & \dots & n_{ki} \end{pmatrix} I_k
+- \frac{1}{n_i} 
+\begin{pmatrix} n_{1i} & n_{2i} & \dots & n_{ki} \end{pmatrix}^\top
+\begin{pmatrix} n_{1i} & n_{2i} & \dots & n_{ki} \end{pmatrix}
+\Big)
+\]
+
+
+
+Vecteur score log-rank généralisé :
+
+\[
+\mathbf{U} = \sum_{i=1}^N w_i (\mathbf{D}_i - \mathbb{E}(\mathbf{D}_i)) \in \mathbb{R}^k
+\]
+
+Matrice de variance :
+
+\[
+\mathbf{V} = \sum_{i=1}^N w_i^2 \mathbf{V}_i \in \mathbb{R}^{k\times k}
+\]
+
+Statistique de test :
+
+\[
+\chi^2 = \mathbf{U}^\top \mathbf{V}^{-1} \mathbf{U} \sim \chi^2_{k-1}
+\]
+
+Ainsi selon le test, on a :
+
+- **Log-Rank** lorsque pour tout i \( \in \) [1, N], \(w_i = 1\)  
+- **Petro & Prentice** lorsque \( w_i = \prod_{k=1}^{i} \frac{n_k}{n_k + d_k} \)
+
+### Exemple selon deux groupes (k = 2)
 
 
 ```{r survival_without_parameters_4, echo = FALSE, fig.align='center'}
@@ -411,93 +519,62 @@ div(style="text-align:center;", fig)
 
 ```
 
-Dans ce graphique, les courbes de survie ont été séparées selon la présence ou l'absence d'un problème de santé mentale.  
 
-Nous posons les hypothèses suivantes pour comparer les groupes :
+Dans notre cas de figure, au dessus, on pose deux groupes :
 
-$$
+
+- Groupe 1 : sans problème de santé mentale  
+- Groupe 2 : avec problème de santé mentale
+
+On évoque donc les hypotèses suivantes :
+
+\[
 \begin{cases}
-H_0 : S_1(t) = S_2(t), & \text{pour tout } t \\
-H_1 : S_1(t) \neq S_2(t), & \text{pour au moins un } t
+H_0 : S_1(t) = S_2(t), & \forall t \\
+H_1 : S_1(t) \neq S_2(t), & \exists t
 \end{cases}
-$$
+\]
 
-où \(S_1(t)\) est la fonction de survie pour les individus **sans problème de santé mentale** et \(S_2(t)\) pour ceux **avec problème de santé mentale**.  
+Soit i \( \in \) [1, 40], on a :
 
-Pour tester ces hypothèses, nous appliquons le **test du Log-Rank**, qui permet de comparer les fonctions de survie entre groupes.
+Vecteur de divorce :
 
+\[
+\mathbf{D}_i = 
+\begin{pmatrix}
+D_{1i} \\ D_{2i}
+\end{pmatrix}, \quad
+\mathbb{E}(\mathbf{D}_i) = \frac{d_i}{n_i} 
+\begin{pmatrix}
+n_{1i} \\ n_{2i}
+\end{pmatrix}
+\]
 
-On cherche à tester l’hypothèse :  
+Variance du premier composant (groupe 1) :
 
-$$
-H_0 : S_A(t) = S_B(t) \quad \forall t,
-$$
+\[
+\mathbb{V}(D_{1i}) = \frac{(n_i - d_i)}{n_i - 1} \frac{d_i n_{1i} n_{2i}}{n_i^2}
+\]
 
-c’est-à-dire que les fonctions de survie des deux groupes sont identiques. Sous $H_0$, la proportion attendue de décès parmi les sujets à risque est la même dans les deux groupes à chaque instant de décès $T_i$.
+Vecteur score réduit à une dimension :
 
-Pour chaque temps $T_i$ :  
+\[
+U = \sum_{i=1}^{40} w_i (D_{1i} - E(D_{1i}))
+\]
 
-- $D_{Ai}$ : nombre d’événements (décès) observés dans le groupe $A$  
-- $D_{Bi}$ : nombre d’événements dans le groupe $B$  
-- $d_i = D_{Ai} + D_{Bi}$ : nombre total d’événements à $T_i$  
-- $n_{Ai}$, $n_{Bi}$, $n_i = n_{Ai}+n_{Bi}$ : nombre d’individus à risque dans chaque groupe et total  
+Variance :
 
-Sous $H_0$, $D_{Ai}$ suit une loi hypergéométrique avec :  
+\[
+\text{Var}(U) = \sum_{i=1}^{40} w_i^2 \mathbb{V}(D_{1i})
+\]
 
-$$
-\text{Espérance : } E(D_{Ai}) = \frac{n_{Ai} \, d_i}{n_i}, \qquad
-\text{Variance : } V(D_{Ai}) = \frac{(n_i - d_i)}{n_i - 1} \frac{d_i n_{Ai} n_{Bi}}{n_i^2}
-$$
+Statistique de test log-rank :
 
-Ainsi, les écarts $D_{Ai} - E(D_{Ai})$ suivent asymptotiquement une loi normale :  
+\[
+\chi_0^2 = \frac{U^2}{\text{Var}(U)} \sim \chi_1^2
+\]
 
-$$
-D_{Ai} - E(D_{Ai}) \sim \mathcal{N}(0, V(D_{Ai}))
-$$
-
-et  
-
-$$
-\frac{(D_{Ai} - E(D_{Ai}))^2}{V(D_{Ai})} \sim \chi^2_1 \quad \text{(asymptotiquement)}.
-$$
-
-
-Soient des pondérations $w_i$ pour chaque temps $T_i$ :  
-
-$$
-U = \sum_{i=1}^{N} w_i \, (D_{Ai} - E(D_{Ai}))
-$$
-
-Alors, sous $H_0$, $U$ suit asymptotiquement une loi normale :  
-
-$$
-U \sim \mathcal{N}\Big(0, \sum_{i=1}^{N} w_i^2 V(D_{Ai}) \Big)
-$$
-
-La statistique de test associée :  
-
-$$
-\chi^2_0 = \frac{\Big( \sum_{i=1}^{N} w_i (D_{Ai} - E(D_{Ai})) \Big)^2}{\sum_{i=1}^{N} w_i^2 V(D_{Ai})} \sim \chi^2_1 \quad \text{(asymptotiquement)}
-$$
-
-- **Test du Log-Rank** : $w_i = 1$  
-  - Poids égaux pour tous les décès, peu importe le temps.  
-- **Test de Gehan** : $w_i = n_i$  
-  - Poids plus élevés pour les décès précoces.  
-- **Test de Peto-Prentice** :  
-$$
-w_i = \prod_{k=1}^{i} \frac{n_k}{n_k + d_k}
-$$  
-  - Poids inspirés de l’estimateur Kaplan–Meier, favorisant aussi les événements précoces.  
-
-**Remarques importantes :**  
-1. Les tests sont valides uniquement si les courbes de survie ne se croisent pas.  
-2. Le Log-Rank est le test le plus couramment utilisé en pratique.  
-3. Il existe des versions approchées du Log-Rank pour des calculs manuels.
-
-
-
-
+On effectue le test selon le test de log-rank :
 
 ```{r survival_without_parameters_5, echo = FALSE, }
 # vecteurs concaténés
@@ -515,8 +592,32 @@ res <- survdiff(Surv(time, event) ~ group, rho = 0)
 res
 ```
 
+On effectue le test selon le test de  Peto & Prentice :
 
-```{r survival_without_parameters_6, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_6, echo = FALSE, }
+# vecteurs concaténés
+time  <- c(time1, time2)
+event <- c(event1, event2)
+
+# facteur groupe
+group <- factor(c(
+  rep("no_mental_health_issue", length(time1)),
+  rep("mental_health_issue", length(time2))
+))
+
+# test du log-rank (khi-deux)
+res <- survdiff(Surv(time, event) ~ group, rho = 1)
+res
+```
+
+
+Le test du Log-Rank (rho = 0) donne une statistique de Chi-2 égale à 10,1 avec 1 degré de liberté et une p-value de 0,002. Comme la p-value est inférieure au seuil de 0,05, l’hypothèse nulle $H_0$ d’égalité des fonctions de survie entre les deux groupes peut être rejetée. On en conclut qu’il existe une différence significative entre la survie des individus avec et sans problème de santé mentale.
+
+Le test de Petro & Prentice (rho = 1), qui pondère davantage les événements précoces, fournit une statistique de Chi-2 de 6,62 avec 1 degré de liberté et une p-value de 0,01. Cette p-value étant également inférieure à 0,05, le résultat confirme que la différence observée entre les groupes est significative, même en mettant un poids plus important sur les événements survenus tôt.
+
+### Exemple selon plusieurs groupes (k = 4 > 2)
+
+```{r survival_without_parameters_7, echo = FALSE, fig.align='center'}
 # --- Données
 time1 <- data.brute$marriage_duration_years[data.brute$education_level=="Bachelor"]
 event1 <- data.brute$divorced[data.brute$education_level=="Bachelor"]
@@ -659,20 +760,37 @@ div(style="text-align:center;", fig)
 
 ```
 
-```{r survival_without_parameters_7, echo = FALSE}
-
-```
+Dans notre cas de figure, au dessus, on pose deux groupes :
 
 
-```{r survival_without_parameters_8, echo = FALSE, }
+- Groupe 1 : Bachelor
+- Groupe 2 : High School
+- Groupe 3 : Master
+- Groupe 4 : PhD
+
+On évoque donc les hypotèses suivantes :
+
+\[
+\begin{cases}
+H_0 : S_1(t) = S_2(t) = S_3(t) = S_4(t) , & \forall t \\
+H_1 : S_1(t) \neq S_2(t\neq S_3(t) \neq S_4(t), & \exists t
+\end{cases}
+\]
+
+On obtient donc selon le test du log-rank :
+
+
+```{r survival_without_parameters_9, echo = FALSE, }
 # vecteurs concaténés
-time  <- c(time4, time5)
-event <- c(event4, event5)
+time  <- c(time1, time2, time3, time4)
+event <- c(event1, event2, event3, event4)
 
 # facteur groupe
 group <- factor(c(
-  rep("PhD", length(time4)),
-  rep("No Formal Education", length(time5))
+  rep("Bachelor", length(time1)),
+  rep("Hight School", length(time2)),
+  rep("Master", length(time3)),
+  rep("PhD", length(time4))
 ))
 
 # test du log-rank (khi-deux)
@@ -681,6 +799,30 @@ res
 
 
 ```
+On obtient donc selon le test de Peto & Pretice :
+
+```{r survival_without_parameters_99, echo = FALSE, }
+# vecteurs concaténés
+time  <- c(time1, time2, time3, time4)
+event <- c(event1, event2, event3, event4)
+
+# facteur groupe
+group <- factor(c(
+  rep("Bachelor", length(time1)),
+  rep("Hight School", length(time2)),
+  rep("Master", length(time3)),
+  rep("PhD", length(time4))
+))
+
+# test du log-rank (khi-deux)
+res <- survdiff(Surv(time, event) ~ group, rho = 1)
+res
+```
+
+Le test du Log-Rank (rho = 0) donne une statistique de Chi-2 égale à 3,6 avec 3 degrés de liberté et une p-value de 0,3. Comme la p-value est supérieure au seuil de 0,05, l’hypothèse nulle H0 d’égalité des fonctions de survie entre les niveaux d’éducation ne peut pas être rejetée. On en conclut qu’il n’existe pas de différence significative de survie selon le niveau d’éducation.
+
+Le test de Peto & Prentice (rho = 1), qui pondère davantage les événements précoces, fournit une statistique de Chi-2 de 5 avec 3 degrés de liberté et une p-value de 0,2. Cette p-value étant également supérieure à 0,05, le résultat confirme qu’aucune différence significative de survie n’est observée entre les niveaux d’éducation, même en mettant un poids plus important sur les événements survenus tôt.
+
 
 ## - Estimateur de Nelson-Aalen
 
@@ -801,7 +943,7 @@ on obtient l'estimateur de Breslow du risque cumulé :
 \(\hat{H}_{NA}(t)=\sum_{t_i\le t}\dfrac{d_i}{n_i}\) lorsque les sauts sont petits.
 
 
-```{r survival_without_parameters_9, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_10, echo = FALSE, fig.align='center'}
 # --- Tableau combiné Nelson-Aalen + Breslow + Variance ---
 risk_methods <- data.frame(
   Méthode = c("Nelson-Aalen", "Breslow"),
@@ -839,8 +981,9 @@ kable(risk_methods, "html", escape = FALSE,
 
 ```
 
+### Graphique de la fonction du risque cumulatif
 
-```{r survival_without_parameters_10, echo = FALSE, fig.align='center'}
+```{r survival_without_parameters_11, echo = FALSE, fig.align='center'}
 # --- Données ---
 time  <- data.brute$marriage_duration_years
 event <- data.brute$divorced
@@ -945,9 +1088,17 @@ div(style="text-align:center;", fig)
 
 ```
 
-### - Estimateur de la fonction du risque instanné (Nelson-Aalen)
+Les courbes de risque cumulatif sans censure montrent le cumul des divorces en considérant tous les couples comme observés jusqu’à la fin. Pour Nelson-Aalen, le risque cumulatif commence à environ 0,18 après un an, atteint 0,54 après cinq ans et dépasse 5 après quarante ans. Cette courbe reflète le risque brut et tend à surestimer le risque réel, car elle ne tient pas compte des couples censurés. Pour Breslow sans censure, le risque cumulatif est légèrement plus élevé à chaque instant et dépasse 4 après quarante ans, reflétant également une estimation brute du risque de divorce.  La courbe ne se termine pas toujours de manière définie à la fin, ce qui est normal puisque le calcul implique le logarithme de la survie et log(0) n’est pas défini.
 
-```{r survival_without_parameters_11, echo = FALSE, fig.align='center'}
+Les courbes avec censure corrigent le calcul en tenant compte des couples dont on ne connaît pas la fin du mariage. Pour Nelson-Aalen avec censure, le risque cumulatif augmente plus lentement, commençant à environ 0,068 après un an et atteignant environ 2,1 après quarante ans. Les intervalles de confiance s’élargissent progressivement avec le temps car moins de couples restent à risque. Pour Breslow avec censure, le risque cumulatif commence à environ 0,07 après un an et atteint 2,29 après quarante ans.
+
+On voit notamment pour chacune des courbes une augmentation du risque pour la période de  40 ans de durée de marriage. Cela peut s'expliquer de par une plus grande fréquence à 40  ans de durée de marriage parmi les années de 30 ans à 40 ans de durée de marriage selon la distribution de la variable `marriage_duration_years`.
+
+En résumé, les estimateurs sans censure surestiment le risque cumulatif de divorce, tandis que les estimateurs avec censure donnent une estimation plus réaliste. Nelson-Aalen et Breslow donnent des courbes similaires, Breslow étant légèrement plus lisse et pouvant présenter des valeurs non définies si la survie estimée devient nulle.
+
+### - Graphique de la fonction du risque instanné (Nelson-Aalen)
+
+```{r survival_without_parameters_12, echo = FALSE, fig.align='center'}
 # --- Données ---
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
@@ -1002,3 +1153,9 @@ fig <- plot_ly() %>%
 div(style = "text-align:center;", fig)
 
 ```
+
+Au début du mariage, le risque instantané de divorce est relativement élevé, avec un pic la première année (0,068 avec censure et 0,178 sans censure). Cela traduit une période initiale plus critique où les couples doivent s’adapter à la vie à deux. Ensuite, le risque se stabilise mais on note des petites augmentations autour de 5 à 7 ans, correspondant possiblement aux premières tensions liées à la vie commune et à l’arrivée éventuelle des enfants. 
+
+Une autre période où le risque augmente légèrement se situe entre 25 et 32 ans de mariage, avec des valeurs autour de 0,057–0,058 avec censure et 0,133–0,156 sans censure, reflétant des divorces plus tardifs dus à potentiellement à l’accumulation de tensions sur le long terme.
+
+Enfin, vers la fin de l’observation, la fonction de risque montre des valeurs très élevées, notamment à 40 ans (0,455 avec censure et 1 sans censure), mais il s’agit d’un artefact dû au faible nombre de couples restant à risque et aux calculs de la fonction, et non d’un risque réellement plus élevé dans la population. On observe donc des périodes à risque plus marqué au début, quelques fluctuations intermédiaires et un pic final artificiel.
