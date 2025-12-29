@@ -1,0 +1,15 @@
+```{r source survival_semi_parameters, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+suppressPackageStartupMessages(source("setup.R"))
+```
+
+# Modèle semi-paramétrique
+
+blablabla
+
+## Modèle Cox
+
+formul blablabla
+
+```{r survival_semi_parameters_0, echo = FALSE, fig.align='center'}
+
+```
