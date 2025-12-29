@@ -2,14 +2,108 @@
 suppressPackageStartupMessages(source("setup.R"))
 ```
 
-# Modèle semi-paramétrique
+# Modèle Cox
 
-blablabla
+On se place dans le cadre du modèle de Cox. La fonction de risque conditionnelle s’écrit
 
-## Modèle Cox
+\[
+h(t \mid X) = h_0(t)\exp(\beta^T X),
+\]
 
-formul blablabla
+où :
+
+- \(X = (X_1, X_2, \dots, X_p)^T\) est le vecteur de covariables de dimension \(p \times 1\),
+- \(\beta = (\beta_1, \beta_2, \dots, \beta_p)^T\) est le vecteur de coefficients de régression.
+- \( h_0(t) \) est le risque instantané d'évènement quand toutes les covariables valent zéros.
+
+Considérons :
+
+- \(D\) le nombre d’événements **divorce** observés parmi les \(n\) sujets de l’étude,
+- \(T_1 < T_2 < \dots < T_D\) les temps distincts de divorce,
+- \(R(T_i)\) l’ensemble des individus encore à risque de divorce juste avant le temps \(T_i\) (toujours mariés à \(T_i^-\)).
+
+Le modèle suppose que le rapport des risques entre deux individus \(i\) et \(j\) est
+
+\[
+\frac{\lambda(t \mid X_i)}{\lambda(t \mid X_j)}
+= \exp\left(\beta^T (X_i - X_j)\right),
+\]
+
+ce qui traduit l’hypothèse de **risques proportionnels**.
+
+
 
 ```{r survival_semi_parameters_0, echo = FALSE, fig.align='center'}
+# --- Données
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
 
+cox_all <- coxph(
+  Surv(time, event) ~ . - divorced - marriage_duration_years,
+  data = data.brute
+)
+
+summary(cox_all)
+
+```
+
+La compatibilité religieuse apparaît comme un facteur protecteur : les couples où la personne n’est pas religieuse ont un hazard ratio de 0.849, ce qui correspond à une réduction du risque de divorce d’environ 15 % par rapport à la catégorie de référence. Cet effet est statistiquement significatif (z = -2.27, p = 0.0232), indiquant que l’absence de religion réduit légèrement mais de manière significative le risque de rupture.
+
+La qualité de la communication entre partenaires a un effet protecteur important. Chaque augmentation d’une unité du score de communication est associée à un hazard ratio de 0.953, soit une diminution du risque de divorce d’environ 4,7 %, avec une très forte significativité statistique (z = -4.26, p = 2.0e-05). Cela indique que de meilleures compétences en communication réduisent le risque de divorce.
+
+Le stress financier augmente le risque de divorce : chaque unité supplémentaire dans le niveau de stress financier est associée à un hazard ratio de 1.028, soit une augmentation du risque de divorce d’environ 2,8 %, avec z = 2.80 et p = 0.0051.
+
+Les problèmes de santé mentale accroissent également le risque de divorce. Les couples où un partenaire présente des problèmes de santé mentale ont un hazard ratio de 1.174, ce qui correspond à une augmentation du risque de divorce d’environ 17,4 %, z = 2.95, p = 0.0031.
+
+L’infidélité est un facteur de risque majeur : les couples où l’infidélité est survenue ont un hazard ratio de 1.270, soit une augmentation du risque de divorce d’environ 27 %, z = 4.07, p = 4.6e-05.
+
+L’historique de violence domestique est le facteur le plus impactant observé : les couples ayant un tel historique présentent un hazard ratio de 1.443, correspondant à une augmentation du risque de divorce d’environ 44,3 %, avec z = 4.18 et p = 2.9e-05.
+
+Enfin, le niveau de confiance est fortement protecteur : chaque unité supplémentaire dans le score de confiance est associée à un hazard ratio de 0.949, soit une réduction du risque de divorce d’environ 5,1 %, avec une significativité très élevée (z = -4.60, p = 4.1e-06).
+
+Ces résultats montrent que les facteurs relationnels (communication, confiance, infidélité, violence domestique), psychologiques (problèmes de santé mentale) et financiers (stress financier) ont un impact significatif sur la stabilité du mariage. Les variables avec HR < 1 réduisent le risque de divorce, tandis que celles avec HR > 1 l’augmentent.
+
+```{r survival_semi_parameters_1}
+# Création du dataframe synthétique
+df_significatives <- data.frame(
+  Variable = c(
+    "Religious Compatibility (Not Religious)",
+    "Communication Score",
+    "Financial Stress Level",
+    "Mental Health Issues",
+    "Infidelity Occurred",
+    "Domestic Violence History",
+    "Trust Score"
+  ),
+  HR = c(0.849, 0.953, 1.028, 1.174, 1.270, 1.443, 0.949),
+  Pourcentage_Risque = c(
+    "-15%", "-4.7%", "+2.8%", "+17.4%", "+27%", "+44.3%", "-5.1%"
+  ),
+  Interpretation = c(
+    "Non religieuse → réduction du risque de divorce",
+    "Meilleure communication → réduction du risque",
+    "Stress financier ↑ → risque de divorce ↑",
+    "Problèmes de santé mentale ↑ → risque ↑",
+    "Infidélité → risque de divorce ↑",
+    "Historique de violence → risque ↑",
+    "Confiance ↑ → réduction du risque de divorce"
+  )
+)
+
+# Coloration dynamique de la colonne Pourcentage_Risque
+df_significatives$Pourcentage_Risque <- sapply(df_significatives$Pourcentage_Risque, function(x) {
+  value <- as.numeric(gsub("[+%]", "", x))  # extraire valeur numérique
+  color <- ifelse(value > 0, "red", "green")
+  cell_spec(x, color = color, bold = TRUE)
+})
+
+# Création du tableau
+kable(df_significatives, "html", escape = FALSE,
+      caption = "📊 Covariables significatives du modèle de Cox") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE, color = "black", background = c("#D6EAF8", "#F9E79F", "#FDEDEC", "#D6EAF8", "#F9E79F", "#FDEDEC", "#D6EAF8")) %>%
+  column_spec(2, width = "3cm") %>%
+  column_spec(3, width = "3cm") %>%
+  column_spec(4, width = "8cm") %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
 ```
