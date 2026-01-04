@@ -2,7 +2,433 @@
 ```{r source dataprepared witjout_parameters, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 suppressPackageStartupMessages(source("setup.R"))
 ```
+# Loi paramétrique : Test de conformité 
+On cherche à présent à trouver une densité standard permettant d’approcher au mieux la fonction de survie. Pour chacune des distributions standards, on affichera quatre graphiques permettant un diagnostic visuel.
 
-```{r survival_with_parameters_0}
+
+## Loi Gamma
+
+Dans cette section, nous étudions la pertinence de la **loi Gamma** pour modéliser la durée du mariage (`marriage_duration_years`), considérée comme une variable de survie positive représentant le temps jusqu’au divorce.
+
+Une variable aléatoire \(T\) suit une loi Gamma de paramètres \(\alpha > 0\) (forme) et \(\theta > 0\) (échelle), notée \(T \sim \Gamma(\alpha, \theta)\), si sa densité de probabilité est donnée par :
+
+\[
+f(t) = \frac{1}{\Gamma(\alpha)\theta^\alpha} t^{\alpha-1} e^{-t/\theta}, \quad t > 0
+\]
+
+où \(\Gamma(\alpha)\) désigne la fonction Gamma.
+
+Les principaux moments de la loi Gamma sont :
+
+- **Espérance** :
+\[
+\mathbb{E}[T] = \alpha \theta
+\]
+- **Variance** :
+\[
+\text{Var}(T) = \alpha \theta^2
+\]
+
+---
+
+### Interprétation de la loi Gamma en analyse de survie
+
+La loi Gamma est particulièrement adaptée à la modélisation de **temps strictement positifs**, comme la durée d’un mariage.  
+Son paramètre de forme \(\alpha\) permet de représenter différentes dynamiques temporelles du risque :
+
+- \(\alpha < 1\) : risque élevé au début puis décroissant (sélection des individus les plus fragiles)
+- \(\alpha = 1\) : cas particulier correspondant à une loi exponentielle (risque constant)
+- \(\alpha > 1\) : risque croissant dans le temps (accumulation de facteurs de risque)
+
+Contrairement à la loi de Weibull, la loi Gamma ne possède pas une expression simple de la fonction de risque. Elle est donc principalement utilisée pour **ajuster correctement la distribution des durées**, plutôt que pour interpréter directement l’évolution instantanée du risque. Son intérêt réside dans sa flexibilité et sa capacité à représenter des distributions asymétriques observées empiriquement.
+
+---
+
+### Ajustement de la loi Gamma sur la durée du mariage
+
+Dans un premier temps, nous ajustons une loi Gamma à la variable `marriage_duration_years` afin d’évaluer empiriquement l’adéquation de cette loi aux données observées. Cette étape est purement exploratoire et ne tient pas encore compte de la censure.
+
+```{r survival_with_parameters_0, echo = FALSE, fig.align='center'}
+library(fitdistrplus)
+
+# Extraction de la variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Ajustement de la loi Gamma
+fit_gamma <- fitdist(survival_time, "gamma")
+summary(fit_gamma)
+# Résumé des paramètres estimés
+plot(fit_gamma,demp=TRUE,histo = TRUE)
+
 
 ```
+
+## Loi Weibull
+
+Une variable aléatoire \(T\) suit une loi de Weibull de paramètres \(\kappa > 0\) (forme) et \(\lambda > 0\) (échelle), notée \(T \sim \text{Weibull}(\kappa, \lambda)\), si sa densité de probabilité est donnée par :
+
+\[
+f(t) = \frac{\kappa}{\lambda} \left(\frac{t}{\lambda}\right)^{\kappa-1} e^{-(t/\lambda)^\kappa}, \quad t > 0
+\]
+
+Les principaux moments de la loi de Weibull sont :
+
+- **Espérance** :
+\[
+\mathbb{E}[T] = \lambda \, \Gamma\left(1 + \frac{1}{\kappa}\right)
+\]
+
+- **Variance** :
+\[
+\text{Var}(T) = \lambda^2 \left[ \Gamma\left(1 + \frac{2}{\kappa}\right) - \left(\Gamma\left(1 + \frac{1}{\kappa}\right)\right)^2 \right]
+\]
+
+où \(\Gamma(\cdot)\) est la fonction Gamma.
+
+---
+
+### Interprétation de la loi de Weibull en analyse de survie
+
+La loi de Weibull est très utilisée en analyse de survie car elle permet de représenter **différentes dynamiques du risque** à travers le paramètre de forme \(\kappa\) :
+
+- \(\kappa < 1\) : risque décroissant dans le temps (événements précoces plus probables)  
+- \(\kappa = 1\) : cas particulier correspondant à une loi exponentielle (risque constant)  
+- \(\kappa > 1\) : risque croissant dans le temps (accumulation des facteurs de risque)  
+
+Le paramètre d’échelle \(\lambda\) ajuste la **dispersion et le niveau général des durées**.  
+Contrairement à la loi Gamma, la loi de Weibull possède une fonction de risque **monotone** et est donc particulièrement intéressante pour analyser la dynamique du risque de divorce dans le temps.
+
+---
+
+### Ajustement de la loi de Weibull sur la durée du mariage
+
+```{r survival_with_parameters_1, echo=FALSE, fig.align='center'}
+library(fitdistrplus)
+
+# Extraction de la variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Ajustement de la loi de Weibull
+fit_weibull <- fitdist(survival_time, "weibull")
+summary(fit_weibull)
+
+# Affichage du résumé et des graphiques de diagnostic
+plot(fit_weibull, demp=TRUE, histo=TRUE)
+```
+
+## Loi Bêta
+
+Une variable aléatoire \(U\) suit une loi Bêta de paramètres \(\alpha > 0\) et \(\beta > 0\), notée  
+\(U \sim \text{Beta}(\alpha, \beta)\), si sa densité de probabilité est donnée par :
+
+\[
+f(u) = \frac{1}{B(\alpha, \beta)} u^{\alpha-1} (1-u)^{\beta-1},
+\quad 0 < u < 1
+\]
+
+où \(B(\alpha, \beta)\) est la fonction bêta, définie par :
+
+\[
+B(\alpha, \beta) = \frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha+\beta)}
+\]
+
+Les principaux moments de la loi Bêta sont :
+
+- **Espérance** :
+\[
+\mathbb{E}[U] = \frac{\alpha}{\alpha + \beta}
+\]
+
+- **Variance** :
+\[
+\text{Var}(U) =
+\frac{\alpha \beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}
+\]
+
+---
+
+### Interprétation de la loi Bêta en analyse de survie
+
+La loi Bêta n’est **pas une loi de survie classique**, car elle est définie sur un intervalle borné \([0,1]\).  
+Elle peut néanmoins être utilisée **après normalisation du temps**, pour modéliser la **position relative d’un événement dans une durée maximale observée**.
+
+Les paramètres ont une interprétation intuitive :
+
+- \(\alpha > \beta\) : concentration des événements vers la fin de la durée
+- \(\alpha < \beta\) : événements précoces plus fréquents
+- \(\alpha = \beta\) : distribution symétrique
+
+La loi Bêta est donc utile pour analyser **la structure relative des durées**, mais **elle ne permet pas d’interpréter directement le risque instantané**, contrairement aux lois de Weibull ou exponentielle.
+
+---
+
+### Ajustement de la loi Bêta sur la durée du mariage normalisée
+
+Avant l’ajustement, la variable `marriage_duration_years` est normalisée sur l’intervalle \([0,1]\) en la divisant par la durée maximale observée.
+
+```{r survival_with_parameters_2, echo=FALSE, fig.align='center'}
+library(fitdistrplus)
+
+# Extraction de la variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Normalisation sur [0,1]
+survival_time_scaled <- survival_time / max(survival_time)
+
+# Ajustement de la loi Bêta
+fit_beta <- fitdist(survival_time_scaled, "beta")
+
+# Affichage des graphiques de diagnostic
+summary(fit_beta)
+plot(fit_beta, demp=TRUE, histo=TRUE)
+```
+
+## Loi exponentielle
+
+
+Une variable aléatoire \(T\) suit une loi exponentielle de paramètre \(\lambda > 0\), notée  
+\(T \sim \text{Exp}(\lambda)\), si sa densité de probabilité est donnée par :
+
+\[
+f(t) = \lambda e^{-\lambda t}, \quad t > 0
+\]
+
+Les principaux moments de la loi exponentielle sont :
+
+- **Espérance** :
+\[
+\mathbb{E}[T] = \frac{1}{\lambda}
+\]
+
+- **Variance** :
+\[
+\text{Var}(T) = \frac{1}{\lambda^2}
+\]
+
+---
+
+### Interprétation de la loi exponentielle en analyse de survie
+
+La loi exponentielle est le **modèle de survie le plus simple**.  
+Elle repose sur l’hypothèse clé d’un **risque constant dans le temps** :
+
+\[
+h(t) = \lambda
+\]
+
+Cela signifie que la probabilité instantanée de divorce est **indépendante de la durée déjà écoulée du mariage**.
+
+Cette propriété implique également la **propriété de perte de mémoire** :
+
+\[
+P(T > t+s \mid T > t) = P(T > s)
+\]
+
+En pratique, cette hypothèse est souvent **forte** dans le contexte du divorce, car elle suppose que :
+- un mariage récent et un mariage ancien ont le même risque instantané de rupture.
+
+La loi exponentielle est donc principalement utilisée comme :
+- **modèle de référence (baseline)**,
+- ou point de comparaison pour des modèles plus flexibles (Weibull, Cox).
+
+---
+
+```{r survival_with_parameters_3, echo=FALSE, fig.align='center'}
+library(fitdistrplus)
+
+# Extraction de la variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Ajustement de la loi exponentielle
+fit_exp <- fitdist(survival_time, "exp")
+summary(fit_exp)
+# Affichage des graphiques de diagnostic
+plot(fit_exp, demp=TRUE, histo=TRUE)
+```
+
+
+## Loi normale
+
+Une variable aléatoire \(T\) suit une loi normale de paramètres \(\mu \in \mathbb{R}\) (moyenne) et \(\sigma > 0\) (écart-type), notée  
+\(T \sim \mathcal{N}(\mu, \sigma^2)\), si sa densité de probabilité est donnée par :
+
+\[
+f(t) = \frac{1}{\sigma \sqrt{2\pi}}
+\exp\left(-\frac{(t-\mu)^2}{2\sigma^2}\right),
+\quad t \in \mathbb{R}
+\]
+
+Les principaux moments de la loi normale sont :
+
+- **Espérance** :
+\[
+\mathbb{E}[T] = \mu
+\]
+
+- **Variance** :
+\[
+\text{Var}(T) = \sigma^2
+\]
+
+---
+
+### Interprétation de la loi normale en analyse de survie
+
+La loi normale n’est **pas adaptée en théorie à l’analyse de survie**, car :
+
+- elle autorise des durées négatives,
+- elle ne respecte pas la contrainte de positivité des temps,
+- elle ne possède pas de fonction de survie ou de risque interprétable dans ce contexte.
+
+Cependant, elle peut être utilisée **à titre exploratoire** pour :
+
+- vérifier si la distribution empirique des durées est approximativement symétrique,
+- comparer visuellement la forme des données à une distribution classique,
+- motiver l’utilisation de transformations (logarithme, par exemple).
+
+Dans le contexte du divorce, une bonne adéquation à une loi normale serait généralement **peu plausible**, car les durées de mariage sont souvent asymétriques et bornées inférieurement par zéro.
+
+---
+
+
+Nous ajustons ici une loi normale à la variable `marriage_duration_years` à des fins purement exploratoires, afin de comparer sa forme à celle des lois de survie paramétriques usuelles.
+
+```{r survival_with_parameters_4, echo=FALSE, fig.align='center'}
+library(fitdistrplus)
+
+# Extraction de la variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Ajustement de la loi normale
+fit_norm <- fitdist(survival_time, "norm")
+summary(fit_norm)
+# Affichage des graphiques de diagnostic
+plot(fit_norm, demp=TRUE, histo=TRUE)
+```
+
+Avec les résulats obtenu précédement nous n'exploreront pas la loi lognormale qui ne semble pas pertinente ici. 
+
+
+## Comparaison des distributions paramétriques par AIC, BIC et test du chi-carré
+
+### Rappel sur les critères AIC et BIC
+
+Les critères **AIC** (Akaike Information Criterion) et **BIC** (Bayesian Information Criterion) permettent de comparer plusieurs distributions paramétriques ajustées aux données, en prenant en compte :
+
+- la qualité de l’ajustement (vraisemblance),
+- la complexité du modèle (nombre de paramètres).
+
+Une valeur plus faible indique un meilleur compromis entre ajustement et parcimonie.
+
+---
+
+### Test du chi-carré d’adéquation
+
+Le **test du chi-carré d’adéquation** permet d’évaluer si une distribution théorique ajustée est compatible avec les données observées.
+
+- **Hypothèse nulle \(H_0\)** :  
+  > Les données suivent la distribution théorique considérée.
+
+- **Hypothèse alternative \(H_1\)** :  
+  > Les données ne suivent pas cette distribution.
+
+Une **p-value faible** conduit au rejet de \(H_0\), indiquant une mauvaise adéquation du modèle.  
+Une **p-value élevée** suggère que l’on ne peut pas rejeter l’hypothèse d’adéquation.
+
+
+---
+
+### Tableau comparatif des lois testées
+
+```{r gof_table_final, echo=FALSE, message=FALSE, warning=FALSE}
+library(fitdistrplus)
+library(dplyr)
+library(knitr)
+library(kableExtra)
+
+# Variable de survie
+survival_time <- na.omit(data.brute$marriage_duration_years)
+
+# Ajustement des lois
+fit_exp     <- fitdist(survival_time, "exp")
+fit_weibull <- fitdist(survival_time, "weibull")
+fit_gamma   <- fitdist(survival_time, "gamma")
+fit_norm    <- fitdist(survival_time, "norm")
+
+# Loi bêta (après normalisation)
+survival_time_scaled <- survival_time / max(survival_time)
+fit_beta <- fitdist(survival_time_scaled, "beta")
+
+# Statistiques de goodness-of-fit
+gof_exp     <- gofstat(fit_exp)
+gof_weibull <- gofstat(fit_weibull)
+gof_gamma   <- gofstat(fit_gamma)
+gof_norm    <- gofstat(fit_norm)
+gof_beta    <- gofstat(fit_beta)
+
+# Construction du tableau
+gof_df <- data.frame(
+  Distribution = c("Exponentielle", "Weibull", "Gamma", "Normale", "Bêta (normalisée)"),
+  AIC = c(
+    fit_exp$aic,
+    fit_weibull$aic,
+    fit_gamma$aic,
+    fit_norm$aic,
+    fit_beta$aic
+  ),
+  BIC = c(
+    fit_exp$bic,
+    fit_weibull$bic,
+    fit_gamma$bic,
+    fit_norm$bic,
+    fit_beta$bic
+  ),
+  Chi2 = c(
+    gof_exp$chisq,
+    gof_weibull$chisq,
+    gof_gamma$chisq,
+    gof_norm$chisq,
+    gof_beta$chisq
+  ),
+  P_value = c(
+    gof_exp$chisqpvalue,
+    gof_weibull$chisqpvalue,
+    gof_gamma$chisqpvalue,
+    gof_norm$chisqpvalue,
+    gof_beta$chisqpvalue
+  )
+)
+
+# Mise en forme et affichage scientifique des p-values
+gof_df <- gof_df %>%
+  mutate(
+    AIC = round(AIC, 1),
+    BIC = round(BIC, 1),
+    Chi2 = round(Chi2, 2),
+    P_value = ifelse(
+      P_value < 2.2e-16,
+      "< 2.2e-16",
+      formatC(P_value, format = "e", digits = 2)
+    )
+  ) %>%
+  arrange(AIC)
+
+# Affichage du tableau
+gof_df %>%
+  kable(
+    format = "html",
+    caption = "Comparaison des lois paramétriques par AIC, BIC et test du chi-carré",
+    col.names = c("Distribution", "AIC", "BIC", "Chi-deux", "p-value"),
+    align = c("l", "c", "c", "c", "c")
+  ) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+    full_width = FALSE,
+    position = "center"
+  ) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#0073C2") %>%
+  column_spec(1, bold = TRUE)
+```
+
+
+
