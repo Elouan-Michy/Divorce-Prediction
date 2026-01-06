@@ -4,13 +4,13 @@ author: "Elouan-Joris"
 date: "2025-09-30"
 output:
   html_document:
-    toc: true                # ✅ active la table des matières
-    toc_float: true          # ✅ menu déroulant flottant sur le côté
-    number_sections: true    # ✅ numérotation des sections
-    theme: united          # 🌈 thème visuel (cosmo, united, journal, etc.)
-    highlight: tango         # 🎨 style pour le code
-    code_folding: show       # 🔽 possibilité de plier/déplier le code
+    toc: true                # active la table des matières
+    toc_float: true          # menu déroulant flottant sur le côté
+    number_sections: true    # numérotation des sections
+    theme: united            # thème visuel (cosmo, united, journal, etc.)
+    highlight: tango         # style pour le code
     df_print: default
+    code_folding: hide   # code masqué par défaut, bouton pour afficher
 
   
 ---
@@ -26,17 +26,17 @@ knitr::opts_chunk$set(
 )
 ```
 
-```{r child='composite/1_Introduction.Rmd', echo = FALSE}
+```{r child='composite/1_Introduction.Rmd'}
 ```
 
-```{r child='composite/2_Data_prepared.Rmd', echo = FALSE}
+```{r child='composite/2_Data_prepared.Rmd'}
 ```
 
-```{r child='composite/3_survival_without_parameters.Rmd', echo = FALSE}
+```{r child='composite/3_survival_without_parameters.Rmd'}
 ```
 
-```{r child='composite/4_survival_with_parameters.Rmd', echo = FALSE}
+```{r child='composite/4_survival_with_parameters.Rmd'}
 ```
 
-```{r child='composite/5_survival_semi_parameters.Rmd', echo = FALSE}
+```{r child='composite/5_survival_semi_parameters.Rmd'}
 ```

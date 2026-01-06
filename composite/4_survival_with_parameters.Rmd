@@ -48,19 +48,16 @@ Contrairement à la loi de Weibull, la loi Gamma ne possède pas une expression 
 
 Dans un premier temps, nous ajustons une loi Gamma à la variable `marriage_duration_years` afin d’évaluer empiriquement l’adéquation de cette loi aux données observées. Cette étape est purement exploratoire et ne tient pas encore compte de la censure.
 
-```{r survival_with_parameters_0, echo = FALSE, fig.align='center'}
-library(fitdistrplus)
-
+```{r survival_with_parameters_0, echo = TRUE, fig.align='center'}
 # Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
 # Ajustement de la loi Gamma
 fit_gamma <- fitdist(survival_time, "gamma")
 summary(fit_gamma)
+
 # Résumé des paramètres estimés
 plot(fit_gamma,demp=TRUE,histo = TRUE)
-
-
 ```
 
 ## Loi Weibull
@@ -102,9 +99,7 @@ Contrairement à la loi Gamma, la loi de Weibull possède une fonction de risque
 
 ### Ajustement de la loi de Weibull sur la durée du mariage
 
-```{r survival_with_parameters_1, echo=FALSE, fig.align='center'}
-library(fitdistrplus)
-
+```{r survival_with_parameters_1, echo = TRUE, fig.align='center'}
 # Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
@@ -166,9 +161,7 @@ La loi Bêta est donc utile pour analyser **la structure relative des durées**,
 
 Avant l’ajustement, la variable `marriage_duration_years` est normalisée sur l’intervalle \([0,1]\) en la divisant par la durée maximale observée.
 
-```{r survival_with_parameters_2, echo=FALSE, fig.align='center'}
-library(fitdistrplus)
-
+```{r survival_with_parameters_2, echo = TRUE, fig.align='center'}
 # Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
@@ -233,9 +226,7 @@ La loi exponentielle est donc principalement utilisée comme :
 
 ---
 
-```{r survival_with_parameters_3, echo=FALSE, fig.align='center'}
-library(fitdistrplus)
-
+```{r survival_with_parameters_3, echo = TRUE, fig.align='center'}
 # Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
@@ -293,9 +284,7 @@ Dans le contexte du divorce, une bonne adéquation à une loi normale serait gé
 
 Nous ajustons ici une loi normale à la variable `marriage_duration_years` à des fins purement exploratoires, afin de comparer sa forme à celle des lois de survie paramétriques usuelles.
 
-```{r survival_with_parameters_4, echo=FALSE, fig.align='center'}
-library(fitdistrplus)
-
+```{r survival_with_parameters_4, echo = TRUE, fig.align='center'}
 # Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
@@ -341,11 +330,6 @@ Une **p-value élevée** suggère que l’on ne peut pas rejeter l’hypothèse 
 ### Tableau comparatif des lois testées
 
 ```{r gof_table_final, echo=FALSE, message=FALSE, warning=FALSE}
-library(fitdistrplus)
-library(dplyr)
-library(knitr)
-library(kableExtra)
-
 # Variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 

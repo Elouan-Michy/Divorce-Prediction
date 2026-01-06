@@ -14,8 +14,6 @@ De plus, nous introduisons une variable \(a\) correspondant à la borne inférie
 On pose $X$ la variable aléatoire de survenue de l'évènement d'intérêt, donc le divorce. On note donc les différentes fonctions de survie et leurs interprétations par le tableau suivant :
 
 ```{r survival_without_parameters_0, echo = FALSE, fig.align='center'}
-
-
 # Définition des colonnes
 fonctions <- c("$S(t)$", "$H(t)$", "$h(t)$")
 
@@ -122,7 +120,7 @@ Cet estimateur correspond simplement à la proportion d’individus encore mari�
 Il suppose qu’il **n’y a aucune donnée censurée**, c’est-à-dire que tous les individus ont eu l’événement observé.
 
 ```{r survival_without_parameters_1, echo = FALSE, fig.align='center'}
-# Tableau Kaplan–Meier SANS CENSURE (variance binomiale)
+# Tableau 
 km_methods_no_censor <- data.frame(
   Méthode = c(
     "Estimateur empirique de survie (sans censure)",
@@ -240,7 +238,7 @@ Enfin, en remplaçant les probabilités conditionnelles dans le produit de survi
 Ainsi, l’estimateur de Kaplan-Meier **corrige naturellement le biais dû à la censure** et fournit une estimation non paramétrique de la fonction de survie.
 
 ```{r survival_without_parameters_2, echo = FALSE, fig.align='center'}
-# Tableau Kaplan-Meier + variance + intervalle de confiance (log)
+# Tableau
 km_methods <- data.frame(
   Méthode = c(
     "Kaplan-Meier",
@@ -288,25 +286,25 @@ kable(km_methods, "html", escape = FALSE,
 
 ### - Graphique Kaplan-Meier
 
-```{r survival_without_parameters_3, echo = FALSE, fig.align='center'}
-# --- Données
+```{r survival_without_parameters_3, echo = TRUE, fig.align='center'}
+# Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-# --- Survie sans censure avec IC
+# Survie sans censure avec IC
 surv_no_censor <- survfit(Surv(time, rep(1, length(time))) ~ 1, conf.type = "plain")
 surv_no_censor$lower[is.na(surv_no_censor$lower)] <- 0
 surv_no_censor$upper[is.na(surv_no_censor$upper)] <- 0
 
 n_no <- length(surv_no_censor$time)
 
-# --- Survie avec censure avec IC
+# Survie avec censure avec IC
 surv_censor <- survfit(Surv(time, event) ~ 1, conf.type = "plain")
 
-# --- Plotly avec IC et legendgroup ---
+# Plotly avec IC et legendgroup
 fig <- plot_ly() %>%
   
-  # --- Sans censure ---
+  # Sans censure
   add_ribbons(x = surv_no_censor$time,
               ymin = surv_no_censor$lower,
               ymax = surv_no_censor$upper,
@@ -321,7 +319,7 @@ fig <- plot_ly() %>%
             legendgroup = "nocens",
             showlegend = TRUE) %>%
   
-  # --- Avec censure ---
+  # Avec censure
   add_ribbons(x = surv_censor$time,
               ymin = surv_censor$lower,
               ymax = surv_censor$upper,
@@ -336,7 +334,7 @@ fig <- plot_ly() %>%
             legendgroup = "cens",
             showlegend = TRUE) %>%
   
-  # --- Layout ---
+  # Layout
   layout(title = "Comparaison des fonctions de survie : sans et avec censure",
          xaxis = list(title = "Durée du mariage (années)"),
          yaxis = list(title = "Probabilité de rester marié"),
@@ -463,8 +461,8 @@ Ainsi selon le test, on a :
 ### Exemple selon deux groupes (k = 2)
 
 
-```{r survival_without_parameters_4, echo = FALSE, fig.align='center'}
-# --- Données
+```{r survival_without_parameters_4, echo = TRUE, fig.align='center'}
+# Données
 time1 <- data.brute$marriage_duration_years[data.brute$mental_health_issues==0]
 event1 <- data.brute$divorced[data.brute$mental_health_issues==0]
 
@@ -472,14 +470,14 @@ time2 <- data.brute$marriage_duration_years[data.brute$mental_health_issues==1]
 event2 <- data.brute$divorced[data.brute$mental_health_issues==1]
 
 
-# --- Survie avec censure avec IC
+# Survie avec censure avec IC
 surv_censor1 <- survfit(Surv(time1, event1) ~ 1, conf.type = "plain")
 surv_censor2 <- survfit(Surv(time2, event2) ~ 1, conf.type = "plain")
 
-# --- Plotly avec IC et legendgroup ---
+# Plotly avec IC et legendgroup
 fig <- plot_ly() %>%
 
-  # --- sans infidéité
+  # sans infidéité
   add_ribbons(x = surv_censor1$time,
               ymin = surv_censor1$lower,
               ymax = surv_censor1$upper,
@@ -494,7 +492,7 @@ fig <- plot_ly() %>%
             legendgroup = "noinfi",
             showlegend = TRUE) %>%
   
-  # --- Avec infidélité
+  # Avec infidélité
   add_ribbons(x = surv_censor2$time,
               ymin = surv_censor2$lower,
               ymax = surv_censor2$upper,
@@ -576,7 +574,7 @@ Statistique de test log-rank :
 
 On effectue le test selon le test de log-rank :
 
-```{r survival_without_parameters_5, echo = FALSE, }
+```{r survival_without_parameters_5, echo = TRUE}
 # vecteurs concaténés
 time  <- c(time1, time2)
 event <- c(event1, event2)
@@ -594,7 +592,7 @@ res
 
 On effectue le test selon le test de  Peto & Prentice :
 
-```{r survival_without_parameters_6, echo = FALSE, }
+```{r survival_without_parameters_6, echo = TRUE}
 # vecteurs concaténés
 time  <- c(time1, time2)
 event <- c(event1, event2)
@@ -617,8 +615,8 @@ Le test de Petro & Prentice (rho = 1), qui pondère davantage les événements p
 
 ### Exemple selon plusieurs groupes (k = 4 > 2)
 
-```{r survival_without_parameters_7, echo = FALSE, fig.align='center'}
-# --- Données
+```{r survival_without_parameters_7, echo = TRUE, fig.align='center'}
+# Données
 time1 <- data.brute$marriage_duration_years[data.brute$education_level=="Bachelor"]
 event1 <- data.brute$divorced[data.brute$education_level=="Bachelor"]
 
@@ -635,7 +633,7 @@ time5 <- data.brute$marriage_duration_years[data.brute$education_level=="No Form
 event5 <- data.brute$divorced[data.brute$education_level=="No Formal Education"]
 
 
-# --- Survie avec censure avec IC
+# Survie avec censure avec IC
 surv_censor1 <- survfit(Surv(time1, event1) ~ 1, conf.type = "plain")
 surv_censor2 <- survfit(Surv(time2, event2) ~ 1, conf.type = "plain")
 surv_censor3 <- survfit(Surv(time3, event3) ~ 1, conf.type = "plain")
@@ -651,7 +649,7 @@ cols <- c(
 )
 
 
-# --- Plotly avec IC et legendgroup ---
+# Plotly avec IC et legendgroup
 fig <- plot_ly() %>%
   
   # Bachelor
@@ -772,15 +770,15 @@ On évoque donc les hypotèses suivantes :
 
 \[
 \begin{cases}
-H_0 : S_1(t) = S_2(t) = S_3(t) = S_4(t) , & \forall t \\
-H_1 : S_1(t) \neq S_2(t\neq S_3(t) \neq S_4(t), & \exists t
+H_0 : S_1(t) = S_2(t) = S_3(t) = S_4(t) ,\ \forall t \\
+H_1 : \exists t,\ \exists (i,j)\in\{1,\dots,4\}^2,\ i \neq j,\ \text{tel que } S_i(t)\neq S_j(t)
 \end{cases}
 \]
 
 On obtient donc selon le test du log-rank :
 
 
-```{r survival_without_parameters_9, echo = FALSE, }
+```{r survival_without_parameters_9, echo = TRUE}
 # vecteurs concaténés
 time  <- c(time1, time2, time3, time4)
 event <- c(event1, event2, event3, event4)
@@ -801,7 +799,7 @@ res
 ```
 On obtient donc selon le test de Peto & Pretice :
 
-```{r survival_without_parameters_99, echo = FALSE, }
+```{r survival_without_parameters_99, echo = TRUE}
 # vecteurs concaténés
 time  <- c(time1, time2, time3, time4)
 event <- c(event1, event2, event3, event4)
@@ -944,7 +942,8 @@ on obtient l'estimateur de Breslow du risque cumulé :
 
 
 ```{r survival_without_parameters_10, echo = FALSE, fig.align='center'}
-# --- Tableau combiné Nelson-Aalen + Breslow + Variance ---
+
+# Tableau combiné 
 risk_methods <- data.frame(
   Méthode = c("Nelson-Aalen", "Breslow"),
   Formule = c(
@@ -983,12 +982,12 @@ kable(risk_methods, "html", escape = FALSE,
 
 ### Graphique de la fonction du risque cumulatif
 
-```{r survival_without_parameters_11, echo = FALSE, fig.align='center'}
-# --- Données ---
+```{r survival_without_parameters_11, echo = TRUE, fig.align='center'}
+# Données 
 time  <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-# --- 1️⃣ Avec censure ---
+# Avec censure 
 km_cens <- survfit(Surv(time, event) ~ 1)
 
 # Nelson-Aalen
@@ -1010,7 +1009,7 @@ df_Bres_cens <- data.frame(
   upper = -log(km_bres_cens$lower)
 )
 
-# --- 2️⃣ Sans censure ---
+# Sans censure 
 km_nocens <- survfit(Surv(time, rep(1,length(time))) ~ 1)
 
 # Nelson-Aalen
@@ -1032,10 +1031,10 @@ df_Bres_nocens <- data.frame(
   upper = -log(km_bres_nocens$lower)
 )
 
-# --- Plot Plotly avec IC et legendgroup ---
+# Affichage du graphique
 fig <- plot_ly() %>%
   
-  # --- Avec censure ---
+  # Avec censure
   # Nelson-Aalen
   add_ribbons(data = df_NA_cens, x = ~time, ymin = ~lower, ymax = ~upper,
               fillcolor = "rgba(255,0,0,0.2)", line = list(color = 'transparent'),
@@ -1054,7 +1053,7 @@ fig <- plot_ly() %>%
             name = "Breslow avec censure",
             legendgroup = "Bres_cens", showlegend = TRUE) %>%
   
-  # --- Sans censure ---
+  # Sans censure
   # Nelson-Aalen
   add_ribbons(data = df_NA_nocens, x = ~time, ymin = ~lower, ymax = ~upper,
               fillcolor = "rgba(255,165,0,0.2)", line = list(color = 'transparent'),
@@ -1076,7 +1075,7 @@ fig <- plot_ly() %>%
             name = "Breslow sans censure",
             legendgroup = "Bres_nocens", showlegend = TRUE) %>%
   
-  # --- Layout ---
+  # Layout
   layout(
     title = "Risque cumulatif : avec et sans censure (Nelson-Aalen & Breslow)",
     xaxis = list(title = "Durée du mariage (années)"),
@@ -1098,12 +1097,12 @@ En résumé, les estimateurs sans censure surestiment le risque cumulatif de div
 
 ### - Graphique de la fonction du risque instanné (Nelson-Aalen)
 
-```{r survival_without_parameters_12, echo = FALSE, fig.align='center'}
-# --- Données ---
+```{r survival_without_parameters_12, echo = TRUE, fig.align='center'}
+# Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
-# --- Hazard instantané Nelson-Aalen avec censure ---
+# Hazard instantané Nelson-Aalen avec censure
 fit_cens <- survfit(Surv(time, event) ~ 1)
 h_cens <- fit_cens$n.event / fit_cens$n.risk
 se_h_cens <- sqrt(fit_cens$n.event / (fit_cens$n.risk^2))
@@ -1114,7 +1113,7 @@ df_cens <- data.frame(
   upper = h_cens + 1.96 * se_h_cens
 )
 
-# --- Hazard instantané Nelson-Aalen sans censure ---
+# Hazard instantané Nelson-Aalen sans censure
 fit_nocens <- survfit(Surv(time, rep(1, length(time))) ~ 1)
 h_nocens <- fit_nocens$n.event / fit_nocens$n.risk
 se_h_nocens <- sqrt(fit_nocens$n.event / (fit_nocens$n.risk^2))
@@ -1125,7 +1124,7 @@ df_nocens <- data.frame(
   upper = h_nocens + 1.96 * se_h_nocens
 )
 
-# --- Plotly avec IC et legendgroup ---
+# Plotly avec IC et legendgroup
 fig <- plot_ly() %>%
   # Ribbon Sans censure
   add_ribbons(data = df_nocens, x = ~time, ymin = ~lower, ymax = ~upper,

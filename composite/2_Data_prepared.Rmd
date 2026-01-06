@@ -85,10 +85,7 @@ kable(variables, "html", escape=FALSE, caption="📊 Tableau des variables avec 
 
 ## - Boxplot des données Quantitatives & Histogrammes
 
-```{r data_prepared_2, echo = FALSE}
-library(plotly)
-library(RColorBrewer)
-
+```{r data_prepared_2, echo = TRUE, fig.align='center'}
 vars_quanti <- Nom_de_la_variable[Type == "Quantitative"]
 n <- length(vars_quanti)
 
@@ -125,12 +122,12 @@ for (i in seq_along(vars_quanti)) {
     opacity = 0.7,
     boxpoints = "outliers",
     showlegend = FALSE,
-    name = ""  # <-- force le nom vide
+    name = ""
   )
 
 }
 
-# ---- Dropdown menu ----
+# Configuration du bouton
 buttons <- lapply(seq_len(n), function(i) {
 
   vis <- rep(FALSE, 2 * n)
@@ -176,10 +173,7 @@ L’analyse de la variable `marriage_duration_years` montre une distribution dé
 
 ## - Histogrammes des données Qualitatives
 
-```{r data_prepared_3, echo = FALSE, fig.align='center'}
-library(plotly)
-library(RColorBrewer)
-
+```{r data_prepared_3, echo = TRUE, fig.align='center'}
 # Sélection des variables qualitatives
 vars_quali <- Nom_de_la_variable[Type == "Qualitative"]
 n <- length(vars_quali)
@@ -204,7 +198,7 @@ for (i in seq_along(vars_quali)) {
     cols <- colorRampPalette(cols)(nrow(df))
   }
 
-  ## ---- Pie chart ----
+  # Construction des PieCharts
   fig <- fig %>% add_pie(
     data = df,
     labels = ~modalite,
@@ -216,7 +210,7 @@ for (i in seq_along(vars_quali)) {
   )
 }
 
-## ---- Dropdown menu ----
+# Configurartion du bouton
 buttons <- lapply(seq_len(n), function(i) {
 
   vis <- rep(FALSE, n)
@@ -252,3 +246,5 @@ fig
 
 
 ```
+
+Dans notre dataset, on peut observer un poucentage assez grand de dirvorce en proportion à celui des individus rester mariés, on a 1991 individus sur 5000 qui sont divricés dans notre dataset. Cela représente une proportion de 39,8 % d'individus divorcés. On observe par ailleurs une variable intéressante concernant le type de mariage. Dans notre échantillon, 70,3 % des individus sont mariés par amour, tandis que 24,6 % sont engagés dans un mariage arrangé. Les 5,1 % restants correspondent à d’autres types de mariage, tels que les mariages de convenance, les unions mixtes ou d’autres formes moins fréquentes.
