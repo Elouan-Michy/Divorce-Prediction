@@ -22,19 +22,122 @@ Considérons :
 - \(T_1 < T_2 < \dots < T_D\) les temps distincts de divorce,
 - \(R(T_i)\) l’ensemble des individus encore à risque de divorce juste avant le temps \(T_i\) (toujours mariés à \(T_i^-\)).
 
-Le modèle suppose que le rapport des risques entre deux individus \(i\) et \(j\) est
+Si l'on compare le risque instantané d’un individu ayant \(X_j = 1\) à celui d’un individu de référence dont toutes les covariables valent zéro (\(X = 0\)), on a :
 
 \[
-\frac{\lambda(t \mid X_i)}{\lambda(t \mid X_j)}
-= \exp\left(\beta^T (X_i - X_j)\right),
+\frac{h\bigl(t \,\big|\, X_j = 1, \, X_i = 0 \ \forall i \neq j\bigr)}{h_0(t \mid X = 0)} = \exp(\beta_j) = \text{HR}_j
 \]
 
-ce qui traduit l’hypothèse de **risques proportionnels**.
+En pratique, le HR indique combien de fois le risque instantané est multiplié pour une augmentation d’une unité de la covariable \(X_j\), comparé à un individu de référence avec toutes les autres covariables à zéro.
+
+##  Tests d’hypothèses globaux
+
+À partir de la log-vraisemblance partielle, on peut estimer le vecteur de paramètres β de dimension \(p \times 1\) :
+
+\[
+L(\beta) = \log L_{\text{Cox}}(\beta) 
+= \sum_{i=1}^{D} \left[ \beta^T X_{(i)} - \log \left( \sum_{j \in R(T_i)} \exp(\beta^T X_j) \right) \right],
+\]
+
+La fonction score \(U(\beta)\) est le vecteur des dérivées premières de la log-vraisemblance :
+
+\[
+U(\beta) = \frac{\partial L(\beta)}{\partial \beta} 
+= \sum_{i=1}^{D} \left[ X_{(i)} - \frac{\sum_{j \in R(T_i)} X_j \exp(\beta^T X_j)}{\sum_{j \in R(T_i)} \exp(\beta^T X_j)} \right]
+= \begin{pmatrix}
+\frac{\partial L(\beta)}{\partial \beta_1} \\[1mm]
+\vdots \\[1mm]
+\frac{\partial L(\beta)}{\partial \beta_p}
+\end{pmatrix}.
+\]
+
+Un estimateur consistant de la matrice de variance-covariance de \(\hat{\beta}\) est donné par l’inverse de la matrice d’information de Fisher :
+
+\[
+\mathrm{Var}(\hat{\beta}) = \hat{I}(\hat{\beta})^{-1}, \quad \text{avec } 
+[I(\beta)]_{i,j} = - \frac{\partial^2 L(\beta)}{\partial \beta_i \partial \beta_j}.
+\]
+
+On souhaite tester :
+
+\[
+\begin{cases}
+H_0: \beta_1 = \dots = \beta_p = 0 \\[1mm]
+H_1: \exists j \in \{1,\dots,p\} \text{ tel que } \beta_j \neq 0
+\end{cases}
+\]
+
+Trois statistiques sont classiquement utilisées :
+
+1. **Test du rapport de vraisemblance (Likelihood Ratio Test)** :
+
+\[
+\chi^2_{\text{LRT}} = 2 \left[ \log L_{\text{Cox}}(\hat{\beta}) - \log L_{\text{Cox}}(\beta_0) \right]
+\sim \chi^2_p \text{ sous } H_0
+\]
+
+2. **Test de Wald** :
+
+\[
+\chi^2_W = (\hat{\beta} - \beta_0)^T I(\hat{\beta}) (\hat{\beta} - \beta_0)
+\sim \chi^2_p \text{ sous } H_0
+\]
+
+3. **Test de Score (ou logrank)** :
+
+\[
+\chi^2_S = U(\beta_0)^T I(\beta_0)^{-1} U(\beta_0) \sim \chi^2_p \text{ sous } H_0
+\]
+
+Toutes ces statistiques suivent une loi du chi-deux à \(p\) degrés de liberté sous l’hypothèse nulle. Elles permettent de déterminer si au moins une covariable a un effet significatif sur le risque de l’événement. De plus \(\beta_0\) = 0 dans cette section.
+
+```{r survival_semi_parameters_0, echo = TRUE, fig.align='center'}
+# Données
+time <- data.brute$marriage_duration_years
+event <- data.brute$divorced
+
+# Modèle de Cox
+cox_all <- coxph(
+  Surv(time, event) ~ . - divorced - marriage_duration_years,
+  data = data.brute
+)
+
+model_cox <- summary(cox_all)
+
+# Résultats des tests globaux
+cat(
+  "Likelihood ratio test =", model_cox$logtest[1], "on", model_cox$logtest[2], "df, p=", signif(model_cox$logtest[3], 3), "\n",
+  "Wald test            =", model_cox$waldtest[1], "on", model_cox$waldtest[2], "df, p=", signif(model_cox$waldtest[3], 3), "\n",
+  "Score (logrank) test =", model_cox$sctest[1], "on", model_cox$sctest[2], "df, p=", signif(model_cox$sctest[3], 3), "\n"
+)
 
 
+```
 
-```{r survival_semi_parameters_0, echo = FALSE, fig.align='center'}
-# --- Données
+> Le modèle de Cox ajusté pour les covariables étudiées est globalement significatif. Les trois tests globaux Likelihood ratio, Wald et Score (logrank) donnent des statistiques élevées avec des p-values très faibles (respectivement 1.54e-12, 4.21e-13 et 3.71e-13). Sous l’hypothèse nulle, ces tests évaluent si tous les coefficients des covariables sont nuls, c’est-à-dire si aucune covariable n’a d’effet sur le risque de divorce. Le rejet de cette hypothèse nulle indique qu’au moins une covariable a un effet significatif sur le risque de divorce, justifiant l’examen des coefficients individuels pour identifier quelles covariables contribuent de manière significative au modèle.
+
+## Tests par covariable
+
+La colonne `Pr(>|z|)` correspond au **test de Wald pour chaque coefficient individuel**.
+
+Chaque covariable a sa propre hypothèse nulle :
+
+\[
+H_0 : \beta_j = 0 \quad \text{vs} \quad H_1 : \beta_j \neq 0
+\]
+
+La statistique utilisée est la **statistique de Wald par covariable** :
+
+\[
+z_j = \frac{\hat{\beta}_j}{\text{SE}(\hat{\beta}_j)}, \quad
+\text{p-value} = 2 \cdot \Pr(|Z| > |z_j|),
+\]
+
+où \(\hat{\beta}_j\) est l’estimation du coefficient et \(\text{SE}(\hat{\beta}_j)\) son erreur-type tel que \( \text{SE}(\hat{\beta}_j) = \sqrt{\text{Var}(\hat{\beta}_j)} = \sqrt{\left[ \hat{I}(\hat{\beta})^{-1} \right]_{jj}}, \)
+.
+
+```{r survival_semi_parameters_1, echo = TRUE, fig.align='center'}
+# Données
 time <- data.brute$marriage_duration_years
 event <- data.brute$divorced
 
@@ -43,9 +146,12 @@ cox_all <- coxph(
   data = data.brute
 )
 
-summary(cox_all)
+model_cox <- summary(cox_all)
+
+model_cox$coefficients
 
 ```
+En regardant donc les coefficients, on observe de nombreuses variables ayant un effet significatif sur le modèle.
 
 La compatibilité religieuse apparaît comme un facteur protecteur : les couples où la personne n’est pas religieuse ont un hazard ratio de 0.849, ce qui correspond à une réduction du risque de divorce d’environ 15 % par rapport à la catégorie de référence. Cet effet est statistiquement significatif (z = -2.27, p = 0.0232), indiquant que l’absence de religion réduit légèrement mais de manière significative le risque de rupture.
 
@@ -63,7 +169,9 @@ Enfin, le niveau de confiance est fortement protecteur : chaque unité suppléme
 
 Ces résultats montrent que les facteurs relationnels (communication, confiance, infidélité, violence domestique), psychologiques (problèmes de santé mentale) et financiers (stress financier) ont un impact significatif sur la stabilité du mariage. Les variables avec HR < 1 réduisent le risque de divorce, tandis que celles avec HR > 1 l’augmentent.
 
-```{r survival_semi_parameters_1}
+
+## Synthèse statistique du modèle Cox
+```{r survival_semi_parameters_2}
 # Création du dataframe synthétique
 df_significatives <- data.frame(
   Variable = c(
@@ -107,3 +215,17 @@ kable(df_significatives, "html", escape = FALSE,
   column_spec(4, width = "8cm") %>%
   row_spec(0, bold = TRUE, color = "white", background = "#2C3E50")
 ```
+
+# Conclusion
+
+À travers notre analyse de survie, nous avons pu observer diverses applications des fonctions de survie dans l’étude du divorce. La comparaison entre les données censurées et non censurées met en évidence des différences notables dans l’estimation de la survie. Certaines covariables semblent particulièrement influentes, comme les problèmes de santé mentale, qui montrent un impact significatif sur la durée de vie d’un mariage. En revanche, le niveau d’éducation ne semble pas produire de différence significative.
+
+L’utilisation des données non censurées pose des limites pour les estimateurs de Breslow de la fonction de risque, ce qui suggère de privilégier l’estimateur de Nelson-Aalen pour ces données. Néanmoins, les deux méthodes donnent des résultats globalement similaires, à une asymptote près.
+
+Notre analyse révèle que certains facteurs influencent fortement le risque de divorce, notamment durant la première année de mariage, avec une augmentation notable du risque entre 25 et 30 ans de durée de mariage. Selon les critères AIC et BIC, la loi gamma représente le meilleur ajustement, avec des paramètres estimés à $\alpha$ = 1.1217 et $\theta$ = 0.1223. 
+
+Enfin, le modèle de Cox met en évidence l’influence de variables clés sur la survie d’un mariage : une bonne communication réduit le risque de divorce, tandis que la présence de violence domestique l’augmente considérablement.
+
+# Référence
+
+- Saint Pierre, P. (2021). *Introduction à l'analyse des durées de survie*. Institut de Mathématiques de Toulouse, Université Paul Sabatier.

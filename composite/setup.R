@@ -15,6 +15,7 @@ library(ggfortify)
 library(plotly)
 library(RColorBrewer)
 library(htmltools)
+library(fitdistrplus)
 
 # ---- Options ----
 options(digits = 4)
