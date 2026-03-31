@@ -146,9 +146,7 @@ cox_all <- coxph(
   data = data.brute
 )
 
-model_cox <- summary(cox_all)
-
-model_cox$coefficients
+summary(cox_all)
 
 ```
 En regardant donc les coefficients, on observe de nombreuses variables ayant un effet significatif sur le modèle.

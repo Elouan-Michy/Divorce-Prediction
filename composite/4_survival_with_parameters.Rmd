@@ -1,418 +1,394 @@
-
 ```{r source dataprepared witjout_parameters, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
 suppressPackageStartupMessages(source("setup.R"))
 ```
-# Loi paramétrique : Test de conformité 
-On cherche à présent à trouver une densité standard permettant d’approcher au mieux la fonction de survie. Pour chacune des distributions standards, on affichera quatre graphiques permettant un diagnostic visuel.
 
+# Loi paramétrique : Test de conformité
+
+On cherche à présent à trouver une densité standard permettant d'approcher au mieux la fonction de survie. Pour chacune des distributions standards, on affichera **quatre graphiques de diagnostic** permettant une évaluation visuelle de la qualité d'ajustement :
+
+- **Histogramme + densité ajustée** : compare la forme empirique des données à la densité théorique estimée.
+- **Fonction de répartition empirique vs théorique (CDF)** : évalue si la distribution cumulée théorique suit bien celle des données observées.
+- **Q-Q plot (Quantile-Quantile)** : compare les quantiles empiriques aux quantiles théoriques. Un bon ajustement se traduit par un alignement des points sur la droite $y = x$.
+- **P-P plot (Probability-Probability)** : compare les probabilités cumulées empiriques aux probabilités théoriques. Un bon ajustement correspond également à un alignement sur la diagonale.
+
+---
 
 ## Loi Gamma
 
-Dans cette section, nous étudions la pertinence de la **loi Gamma** pour modéliser la durée du mariage (`marriage_duration_years`), considérée comme une variable de survie positive représentant le temps jusqu’au divorce.
+Dans cette section, nous étudions la pertinence de la **loi Gamma** pour modéliser la durée du mariage (`marriage_duration_years`), considérée comme une variable de survie positive représentant le temps jusqu'au divorce.
 
-Une variable aléatoire \(T\) suit une loi Gamma de paramètres \(\alpha > 0\) (forme) et \(\theta > 0\) (échelle), notée \(T \sim \Gamma(\alpha, \theta)\), si sa densité de probabilité est donnée par :
+Une variable aléatoire $T$ suit une loi Gamma de paramètres $\alpha > 0$ (forme) et $\theta > 0$ (échelle), notée $T \sim \Gamma(\alpha, \theta)$, si sa densité de probabilité est donnée par :
 
-\[
+$$
 f(t) = \frac{1}{\Gamma(\alpha)\theta^\alpha} t^{\alpha-1} e^{-t/\theta}, \quad t > 0
-\]
+$$
 
-où \(\Gamma(\alpha)\) désigne la fonction Gamma.
+où $\Gamma(\alpha)$ désigne la fonction Gamma.
 
 Les principaux moments de la loi Gamma sont :
 
-- **Espérance** :
-\[
-\mathbb{E}[T] = \alpha \theta
-\]
-- **Variance** :
-\[
-\text{Var}(T) = \alpha \theta^2
-\]
+- **Espérance** : $\mathbb{E}[T] = \alpha \theta$
+- **Variance** : $\text{Var}(T) = \alpha \theta^2$
 
 ---
 
 ### Interprétation de la loi Gamma en analyse de survie
 
-La loi Gamma est particulièrement adaptée à la modélisation de **temps strictement positifs**, comme la durée d’un mariage.  
-Son paramètre de forme \(\alpha\) permet de représenter différentes dynamiques temporelles du risque :
+La loi Gamma est particulièrement adaptée à la modélisation de **temps strictement positifs**, comme la durée d'un mariage.  
+Son paramètre de forme $\alpha$ permet de représenter différentes dynamiques temporelles du risque :
 
-- \(\alpha < 1\) : risque élevé au début puis décroissant (sélection des individus les plus fragiles)
-- \(\alpha = 1\) : cas particulier correspondant à une loi exponentielle (risque constant)
-- \(\alpha > 1\) : risque croissant dans le temps (accumulation de facteurs de risque)
+- $\alpha < 1$ : risque élevé au début puis décroissant (sélection des individus les plus fragiles)
+- $\alpha = 1$ : cas particulier correspondant à une loi exponentielle (risque constant)
+- $\alpha > 1$ : risque croissant dans le temps (accumulation de facteurs de risque)
 
-Contrairement à la loi de Weibull, la loi Gamma ne possède pas une expression simple de la fonction de risque. Elle est donc principalement utilisée pour **ajuster correctement la distribution des durées**, plutôt que pour interpréter directement l’évolution instantanée du risque. Son intérêt réside dans sa flexibilité et sa capacité à représenter des distributions asymétriques observées empiriquement.
+Contrairement à la loi de Weibull, la loi Gamma ne possède pas une expression simple de la fonction de risque. Elle est donc principalement utilisée pour **ajuster correctement la distribution des durées**, plutôt que pour interpréter directement l'évolution instantanée du risque. Son intérêt réside dans sa flexibilité et sa capacité à représenter des distributions asymétriques observées empiriquement.
 
 ---
 
 ### Ajustement de la loi Gamma sur la durée du mariage
 
-Dans un premier temps, nous ajustons une loi Gamma à la variable `marriage_duration_years` afin d’évaluer empiriquement l’adéquation de cette loi aux données observées. Cette étape est purement exploratoire et ne tient pas encore compte de la censure.
+Dans un premier temps, nous ajustons une loi Gamma à la variable `marriage_duration_years` afin d'évaluer empiriquement l'adéquation de cette loi aux données observées. Cette étape est purement exploratoire et ne tient pas encore compte de la censure.
 
 ```{r survival_with_parameters_0, echo = TRUE, fig.align='center'}
-# Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
-
-# Ajustement de la loi Gamma
 fit_gamma <- fitdist(survival_time, "gamma")
 summary(fit_gamma)
-
-# Résumé des paramètres estimés
-plot(fit_gamma,demp=TRUE,histo = TRUE)
+plot(fit_gamma, demp = TRUE, histo = TRUE)
 ```
+
+### Analyse des résultats — Loi Gamma
+
+**Paramètres estimés :**
+
+L'ajustement par maximum de vraisemblance donne $\hat{\alpha} = 1.1217$ et $\hat{\theta} = 1/\hat{r} \approx 8.18$ (avec $\hat{r} = 0.1223$ le paramètre de taux). Le paramètre de forme $\hat{\alpha} > 1$ indique un **risque légèrement croissant** en début de mariage, ce qui est cohérent avec l'idée d'une période d'adaptation initiale. L'espérance théorique est $\mathbb{E}[T] = \hat{\alpha}/\hat{r} \approx 9.17$ ans, proche de la moyenne empirique observée.
+
+**Lecture des graphiques de diagnostic :**
+
+- **Histogramme + densité** : La densité Gamma (courbe rouge) suit globalement bien la forme empirique de l'histogramme. On observe cependant que le modèle **sous-estime légèrement le pic de la première barre** (durées entre 0 et 2 ans), qui est empiriquement la plus haute. La décroissance progressive sur les durées moyennes et longues est bien restituée par la courbe théorique.
+
+- **CDF empirique vs théorique** : L'accord entre les courbes empirique et théorique est **excellent sur l'ensemble du support**. Les deux courbes se superposent quasi parfaitement de 0 à 40 ans, ce qui témoigne d'un ajustement global de très bonne qualité.
+
+- **Q-Q plot** : Les points s'alignent bien sur la diagonale pour les quantiles compris entre 0 et environ 40 ans (maximum des données). Au-delà, un **plateau horizontal** de points apparaît autour de $y = 40$, tandis que les quantiles théoriques continuent de croître jusqu'à environ 80. Ce phénomène reflète la **troncature des données à 40 ans** et la nature discrète de la variable, et non un défaut du modèle. Dans la zone principale, l'alignement est satisfaisant.
+
+- **P-P plot** : L'alignement sur la diagonale est globalement bon. De légères déviations sont perceptibles en début de courbe (faibles probabilités), où les probabilités empiriques sont légèrement inférieures aux probabilités théoriques, et en fin de courbe. Ces écarts restent cependant modérés.
+
+**Conclusion :** La loi Gamma offre le **meilleur ajustement parmi toutes les lois testées** (AIC = 32 124, BIC = 32 137). La qualité visuelle de la CDF et du P-P plot confirme une adéquation globalement satisfaisante, malgré la légère sous-estimation du pic initial et les effets de bord aux extrêmes.
+
+---
 
 ## Loi Weibull
 
-Une variable aléatoire \(T\) suit une loi de Weibull de paramètres \(\kappa > 0\) (forme) et \(\lambda > 0\) (échelle), notée \(T \sim \text{Weibull}(\kappa, \lambda)\), si sa densité de probabilité est donnée par :
+Une variable aléatoire $T$ suit une loi de Weibull de paramètres $\kappa > 0$ (forme) et $\lambda > 0$ (échelle), notée $T \sim \text{Weibull}(\kappa, \lambda)$, si sa densité de probabilité est donnée par :
 
-\[
+$$
 f(t) = \frac{\kappa}{\lambda} \left(\frac{t}{\lambda}\right)^{\kappa-1} e^{-(t/\lambda)^\kappa}, \quad t > 0
-\]
+$$
 
 Les principaux moments de la loi de Weibull sont :
 
-- **Espérance** :
-\[
-\mathbb{E}[T] = \lambda \, \Gamma\left(1 + \frac{1}{\kappa}\right)
-\]
-
-- **Variance** :
-\[
-\text{Var}(T) = \lambda^2 \left[ \Gamma\left(1 + \frac{2}{\kappa}\right) - \left(\Gamma\left(1 + \frac{1}{\kappa}\right)\right)^2 \right]
-\]
-
-où \(\Gamma(\cdot)\) est la fonction Gamma.
+- **Espérance** : $\mathbb{E}[T] = \lambda \, \Gamma\!\left(1 + \frac{1}{\kappa}\right)$
+- **Variance** : $\text{Var}(T) = \lambda^2 \left[ \Gamma\!\left(1 + \frac{2}{\kappa}\right) - \left(\Gamma\!\left(1 + \frac{1}{\kappa}\right)\right)^2 \right]$
 
 ---
 
 ### Interprétation de la loi de Weibull en analyse de survie
 
-La loi de Weibull est très utilisée en analyse de survie car elle permet de représenter **différentes dynamiques du risque** à travers le paramètre de forme \(\kappa\) :
+La loi de Weibull est très utilisée en analyse de survie car elle permet de représenter **différentes dynamiques du risque** à travers le paramètre de forme $\kappa$ :
 
-- \(\kappa < 1\) : risque décroissant dans le temps (événements précoces plus probables)  
-- \(\kappa = 1\) : cas particulier correspondant à une loi exponentielle (risque constant)  
-- \(\kappa > 1\) : risque croissant dans le temps (accumulation des facteurs de risque)  
+- $\kappa < 1$ : risque décroissant dans le temps (événements précoces plus probables)
+- $\kappa = 1$ : cas particulier correspondant à une loi exponentielle (risque constant)
+- $\kappa > 1$ : risque croissant dans le temps (accumulation des facteurs de risque)
 
-Le paramètre d’échelle \(\lambda\) ajuste la **dispersion et le niveau général des durées**.  
-Contrairement à la loi Gamma, la loi de Weibull possède une fonction de risque **monotone** et est donc particulièrement intéressante pour analyser la dynamique du risque de divorce dans le temps.
+Le paramètre d'échelle $\lambda$ ajuste la **dispersion et le niveau général des durées**. Contrairement à la loi Gamma, la loi de Weibull possède une fonction de risque **monotone**, ce qui la rend particulièrement intéressante pour analyser la dynamique du risque de divorce dans le temps.
 
 ---
 
 ### Ajustement de la loi de Weibull sur la durée du mariage
 
 ```{r survival_with_parameters_1, echo = TRUE, fig.align='center'}
-# Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
-
-# Ajustement de la loi de Weibull
 fit_weibull <- fitdist(survival_time, "weibull")
 summary(fit_weibull)
-
-# Affichage du résumé et des graphiques de diagnostic
-plot(fit_weibull, demp=TRUE, histo=TRUE)
+plot(fit_weibull, demp = TRUE, histo = TRUE)
 ```
+
+### Analyse des résultats — Loi Weibull
+
+**Paramètres estimés :**
+
+L'ajustement fournit $\hat{\kappa} = 1.051$ (forme) et $\hat{\lambda} = 9.363$ (échelle). Le paramètre de forme $\hat{\kappa}$ est très proche de 1, ce qui suggère que la loi de Weibull se rapproche ici d'une **loi exponentielle** avec un risque quasi-constant. L'espérance théorique est $\mathbb{E}[T] = 9.363 \cdot \Gamma(1 + 1/1.051) \approx 9.13$ ans.
+
+**Lecture des graphiques de diagnostic :**
+
+- **Histogramme + densité** : La densité Weibull présente un profil très similaire à celui de la loi Gamma. Elle **sous-estime également le pic de la première barre** (0–2 ans), avec un décrochage légèrement plus visible entre la courbe rouge et la courbe empirique pointillée sur les premières classes. La forme générale décroissante est néanmoins bien reproduite.
+
+- **CDF empirique vs théorique** : L'accord entre les deux courbes est bon sur l'ensemble du support, comparables à la loi Gamma. De très légères déviations sont observables au début de la distribution (0–5 ans) où la courbe théorique prend légèrement de l'avance sur l'empirique.
+
+- **Q-Q plot** : Le même **plateau horizontal** à $y = 40$ est observé, lié à la troncature des données. Dans la zone principale (0–40 ans), l'alignement est bon, légèrement moins serré que pour la Gamma, les points s'écartant marginalement plus de la diagonale dans les valeurs intermédiaires.
+
+- **P-P plot** : L'alignement sur la diagonale est satisfaisant et très proche de celui observé pour la Gamma. Les déviations restent légères et de même nature — légère sous-estimation aux faibles probabilités, légère surestimation en fin de courbe.
+
+**Conclusion :** La loi Weibull offre un **ajustement légèrement inférieur** à la loi Gamma (AIC = 32 144, BIC = 32 157), mais reste de bonne qualité. Visuellement, les deux lois produisent des diagnostics quasi identiques, ce qui est cohérent avec leurs paramètres de forme proches de 1. L'avantage de la Weibull réside dans l'**interprétabilité directe de sa fonction de risque monotone**.
+
+---
 
 ## Loi Bêta
 
-Une variable aléatoire \(U\) suit une loi Bêta de paramètres \(\alpha > 0\) et \(\beta > 0\), notée  
-\(U \sim \text{Beta}(\alpha, \beta)\), si sa densité de probabilité est donnée par :
+Une variable aléatoire $U$ suit une loi Bêta de paramètres $\alpha > 0$ et $\beta > 0$, notée $U \sim \text{Beta}(\alpha, \beta)$, si sa densité de probabilité est donnée par :
 
-\[
-f(u) = \frac{1}{B(\alpha, \beta)} u^{\alpha-1} (1-u)^{\beta-1},
-\quad 0 < u < 1
-\]
+$$
+f(u) = \frac{1}{B(\alpha, \beta)} u^{\alpha-1} (1-u)^{\beta-1}, \quad 0 < u < 1
+$$
 
-où \(B(\alpha, \beta)\) est la fonction bêta, définie par :
-
-\[
-B(\alpha, \beta) = \frac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha+\beta)}
-\]
+où $B(\alpha, \beta) = \dfrac{\Gamma(\alpha)\Gamma(\beta)}{\Gamma(\alpha+\beta)}$.
 
 Les principaux moments de la loi Bêta sont :
 
-- **Espérance** :
-\[
-\mathbb{E}[U] = \frac{\alpha}{\alpha + \beta}
-\]
-
-- **Variance** :
-\[
-\text{Var}(U) =
-\frac{\alpha \beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}
-\]
+- **Espérance** : $\mathbb{E}[U] = \dfrac{\alpha}{\alpha + \beta}$
+- **Variance** : $\text{Var}(U) = \dfrac{\alpha \beta}{(\alpha + \beta)^2(\alpha + \beta + 1)}$
 
 ---
 
 ### Interprétation de la loi Bêta en analyse de survie
 
-La loi Bêta n’est **pas une loi de survie classique**, car elle est définie sur un intervalle borné \([0,1]\).  
-Elle peut néanmoins être utilisée **après normalisation du temps**, pour modéliser la **position relative d’un événement dans une durée maximale observée**.
+La loi Bêta n'est **pas une loi de survie classique**, car elle est définie sur un intervalle borné $[0,1]$. Elle peut néanmoins être utilisée **après normalisation du temps**, pour modéliser la **position relative d'un événement dans une durée maximale observée**.
 
 Les paramètres ont une interprétation intuitive :
 
-- \(\alpha > \beta\) : concentration des événements vers la fin de la durée
-- \(\alpha < \beta\) : événements précoces plus fréquents
-- \(\alpha = \beta\) : distribution symétrique
-
-La loi Bêta est donc utile pour analyser **la structure relative des durées**, mais **elle ne permet pas d’interpréter directement le risque instantané**, contrairement aux lois de Weibull ou exponentielle.
+- $\alpha > \beta$ : concentration des événements vers la fin de la durée
+- $\alpha < \beta$ : événements précoces plus fréquents
+- $\alpha = \beta$ : distribution symétrique
 
 ---
 
 ### Ajustement de la loi Bêta sur la durée du mariage normalisée
 
-Avant l’ajustement, la variable `marriage_duration_years` est normalisée sur l’intervalle \([0,1]\) en la divisant par la durée maximale observée.
+Avant l'ajustement, la variable `marriage_duration_years` est normalisée sur $[0,1]$ en la divisant par la durée maximale observée.
 
 ```{r survival_with_parameters_2, echo = TRUE, fig.align='center'}
-# Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
-
-# Normalisation sur [0,1]
 survival_time_scaled <- survival_time / max(survival_time)
-
-# Ajustement de la loi Bêta
 fit_beta <- fitdist(survival_time_scaled, "beta")
-
-# Affichage des graphiques de diagnostic
 summary(fit_beta)
-plot(fit_beta, demp=TRUE, histo=TRUE)
+plot(fit_beta, demp = TRUE, histo = TRUE)
 ```
+
+### Analyse des résultats — Loi Bêta
+
+**Paramètres estimés :**
+
+L'ajustement donne $\hat{\alpha}_1 = 0.599$ et $\hat{\alpha}_2 = 2.013$. Comme $\hat{\alpha}_1 < \hat{\alpha}_2$, la distribution est **concentrée vers les faibles valeurs** de la durée normalisée, ce qui correspond à une fréquence plus élevée de divorces précoces — cohérent avec la distribution empirique observée.
+
+**Lecture des graphiques de diagnostic :**
+
+- **Histogramme + densité** : La densité Bêta théorique (courbe rouge) présente un **pic extrêmement prononcé** près de 0, atteignant une densité supérieure à 5, très au-delà de ce que montrent les barres empiriques. Le modèle **surestime fortement la concentration des événements précoces** et sous-estime les durées intermédiaires à longues. L'inadéquation de forme est visuellement évidente.
+
+- **CDF empirique vs théorique** : Contrairement à l'histogramme, les deux courbes CDF sont relativement proches sur l'ensemble du support $[0, 1]$. Cependant, des écarts systématiques subsistent, le modèle surestimant légèrement la proportion cumulée pour les valeurs intermédiaires.
+
+- **Q-Q plot** : Les points s'alignent globalement sur la diagonale dans la zone centrale $[0.1, 0.9]$, mais des déviations notables apparaissent aux deux extrémités : en bas à gauche (quantiles proches de 0), les points s'écartent légèrement en dessous de la diagonale ; en haut à droite (quantiles proches de 1), les points restent en dessous de la diagonale, indiquant que le modèle **surestime les quantiles élevés**.
+
+- **P-P plot** : Une déviation caractéristique est visible en début de courbe, où les probabilités empiriques **démarrent à un niveau nettement inférieur** à la diagonale (autour de $y = 0.10$ pour $x = 0.20$). Ce décalage initial reflète la mauvaise modélisation des faibles durées par la loi Bêta sur ces données discrètes normalisées.
+
+**Conclusion :** Malgré une forme générale partiellement cohérente avec la distribution empirique, la loi Bêta présente une **inadéquation sérieuse** sur les densités, et ses critères d'information sont aberrants (AIC $\approx 2.147 \times 10^{13}$), résultant de problèmes numériques liés à la normalisation de données discrètes sur $[0,1]$. Cette loi est **à écarter** dans ce contexte.
+
+---
 
 ## Loi exponentielle
 
+Une variable aléatoire $T$ suit une loi exponentielle de paramètre $\lambda > 0$, notée $T \sim \text{Exp}(\lambda)$, si sa densité est :
 
-Une variable aléatoire \(T\) suit une loi exponentielle de paramètre \(\lambda > 0\), notée  
-\(T \sim \text{Exp}(\lambda)\), si sa densité de probabilité est donnée par :
-
-\[
+$$
 f(t) = \lambda e^{-\lambda t}, \quad t > 0
-\]
+$$
 
-Les principaux moments de la loi exponentielle sont :
-
-- **Espérance** :
-\[
-\mathbb{E}[T] = \frac{1}{\lambda}
-\]
-
-- **Variance** :
-\[
-\text{Var}(T) = \frac{1}{\lambda^2}
-\]
+- **Espérance** : $\mathbb{E}[T] = \dfrac{1}{\lambda}$
+- **Variance** : $\text{Var}(T) = \dfrac{1}{\lambda^2}$
 
 ---
 
 ### Interprétation de la loi exponentielle en analyse de survie
 
-La loi exponentielle est le **modèle de survie le plus simple**.  
-Elle repose sur l’hypothèse clé d’un **risque constant dans le temps** :
+La loi exponentielle est le **modèle de survie le plus simple**, reposant sur l'hypothèse d'un **risque constant** :
 
-\[
-h(t) = \lambda
-\]
+$$h(t) = \lambda$$
 
-Cela signifie que la probabilité instantanée de divorce est **indépendante de la durée déjà écoulée du mariage**.
+Elle implique la **propriété de perte de mémoire** :
 
-Cette propriété implique également la **propriété de perte de mémoire** :
+$$P(T > t+s \mid T > t) = P(T > s)$$
 
-\[
-P(T > t+s \mid T > t) = P(T > s)
-\]
-
-En pratique, cette hypothèse est souvent **forte** dans le contexte du divorce, car elle suppose que :
-- un mariage récent et un mariage ancien ont le même risque instantané de rupture.
-
-La loi exponentielle est donc principalement utilisée comme :
-- **modèle de référence (baseline)**,
-- ou point de comparaison pour des modèles plus flexibles (Weibull, Cox).
+Dans le contexte du divorce, cette hypothèse suppose qu'un mariage récent et un mariage ancien ont le même risque instantané de rupture — hypothèse forte et souvent peu réaliste. La loi exponentielle est principalement utilisée comme **modèle de référence** ou point de comparaison.
 
 ---
 
 ```{r survival_with_parameters_3, echo = TRUE, fig.align='center'}
-# Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
-
-# Ajustement de la loi exponentielle
 fit_exp <- fitdist(survival_time, "exp")
 summary(fit_exp)
-# Affichage des graphiques de diagnostic
-plot(fit_exp, demp=TRUE, histo=TRUE)
+plot(fit_exp, demp = TRUE, histo = TRUE)
 ```
 
+### Analyse des résultats — Loi exponentielle
+
+**Paramètres estimés :**
+
+L'ajustement donne $\hat{\lambda} = 0.109$, ce qui implique une espérance théorique de $1/\hat{\lambda} \approx 9.17$ ans, cohérente avec la moyenne empirique. Cependant, le modèle exponentiel suppose une décroissance strictement monotone de la densité dès $t = 0$, ce qui entre en contradiction avec la distribution observée.
+
+**Lecture des graphiques de diagnostic :**
+
+- **Histogramme + densité** : L'inadéquation est ici **la plus visible parmi les lois non normales**. La densité exponentielle (courbe rouge) débute à sa valeur maximale ($\approx 0.12$) à $t = 0$ et décroît immédiatement de façon monotone. Or, l'histogramme empirique montre que **la première barre (0–2 ans) est la plus haute**, puis les barres diminuent progressivement. La courbe théorique suit une décroissance trop rapide sur 0–5 ans et trop lente au-delà, créant un **croisement visible** entre les deux courbes autour de 5–7 ans.
+
+- **CDF empirique vs théorique** : L'accord est globalement acceptable mais **légèrement moins bon** que pour les lois Gamma et Weibull. La courbe théorique dépasse l'empirique dans les premières années (0–5 ans), traduisant une surestimation des probabilités cumulées précoces.
+
+- **Q-Q plot** : Le même plateau horizontal à $y = 40$ est observé. Les quantiles théoriques s'étendent ici jusqu'à environ 85 ans, indiquant que la loi exponentielle **prédit une queue droite plus lourde** que celle réellement observée dans les données. L'alignement dans la zone principale est correct mais moins précis que pour la Gamma.
+
+- **P-P plot** : L'alignement sur la diagonale est satisfaisant dans l'ensemble, avec des déviations légèrement plus marquées que pour la Gamma, notamment en début de courbe où la courbe empirique s'écarte plus nettement au-dessus de la diagonale.
+
+**Conclusion :** La loi exponentielle est **moins bien ajustée** que la Gamma ou la Weibull (AIC = 32 162, BIC = 32 169). Son principal défaut, visible sur l'histogramme, est l'impossibilité de reproduire un pic de densité en début de distribution. Elle sert de **modèle de référence** et confirme que le risque de divorce n'est pas parfaitement constant dans le temps.
+
+---
 
 ## Loi normale
 
-Une variable aléatoire \(T\) suit une loi normale de paramètres \(\mu \in \mathbb{R}\) (moyenne) et \(\sigma > 0\) (écart-type), notée  
-\(T \sim \mathcal{N}(\mu, \sigma^2)\), si sa densité de probabilité est donnée par :
+Une variable aléatoire $T$ suit une loi normale $T \sim \mathcal{N}(\mu, \sigma^2)$ si :
 
-\[
-f(t) = \frac{1}{\sigma \sqrt{2\pi}}
-\exp\left(-\frac{(t-\mu)^2}{2\sigma^2}\right),
-\quad t \in \mathbb{R}
-\]
+$$
+f(t) = \frac{1}{\sigma \sqrt{2\pi}} \exp\!\left(-\frac{(t-\mu)^2}{2\sigma^2}\right), \quad t \in \mathbb{R}
+$$
 
-Les principaux moments de la loi normale sont :
-
-- **Espérance** :
-\[
-\mathbb{E}[T] = \mu
-\]
-
-- **Variance** :
-\[
-\text{Var}(T) = \sigma^2
-\]
+- **Espérance** : $\mathbb{E}[T] = \mu$
+- **Variance** : $\text{Var}(T) = \sigma^2$
 
 ---
 
 ### Interprétation de la loi normale en analyse de survie
 
-La loi normale n’est **pas adaptée en théorie à l’analyse de survie**, car :
+La loi normale est **théoriquement inadaptée** à l'analyse de survie :
 
 - elle autorise des durées négatives,
 - elle ne respecte pas la contrainte de positivité des temps,
-- elle ne possède pas de fonction de survie ou de risque interprétable dans ce contexte.
+- elle ne possède pas de fonction de risque interprétable dans ce contexte.
 
-Cependant, elle peut être utilisée **à titre exploratoire** pour :
-
-- vérifier si la distribution empirique des durées est approximativement symétrique,
-- comparer visuellement la forme des données à une distribution classique,
-- motiver l’utilisation de transformations (logarithme, par exemple).
-
-Dans le contexte du divorce, une bonne adéquation à une loi normale serait généralement **peu plausible**, car les durées de mariage sont souvent asymétriques et bornées inférieurement par zéro.
+Elle peut néanmoins être utilisée **à titre exploratoire** pour vérifier si la distribution des durées est approximativement symétrique, ou pour motiver l'utilisation de transformations logarithmiques.
 
 ---
 
-
-Nous ajustons ici une loi normale à la variable `marriage_duration_years` à des fins purement exploratoires, afin de comparer sa forme à celle des lois de survie paramétriques usuelles.
-
 ```{r survival_with_parameters_4, echo = TRUE, fig.align='center'}
-# Extraction de la variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
-
-# Ajustement de la loi normale
 fit_norm <- fitdist(survival_time, "norm")
 summary(fit_norm)
-# Affichage des graphiques de diagnostic
-plot(fit_norm, demp=TRUE, histo=TRUE)
+plot(fit_norm, demp = TRUE, histo = TRUE)
 ```
 
-Avec les résulats obtenu précédement nous n'exploreront pas la loi lognormale qui ne semble pas pertinente ici. 
+### Analyse des résultats — Loi normale
 
+**Paramètres estimés :**
+
+L'ajustement donne $\hat{\mu} = 9.171$ et $\hat{\sigma} = 8.847$. La forte valeur de $\hat{\sigma}$ relativement à $\hat{\mu}$ traduit une distribution très étalée. Le rapport $\hat{\mu}/\hat{\sigma} \approx 1.04$ indique qu'une proportion non négligeable de la masse théorique se situe en zone négative, ce qui est **incohérent** avec des durées de mariage positives.
+
+**Lecture des graphiques de diagnostic :**
+
+- **Histogramme + densité** : L'inadéquation est **flagrante**. La densité normale (courbe rouge) est en forme de cloche, symétrique et centrée autour de 9 ans, avec un maximum de densité très faible (autour de 0.045). Elle ne peut reproduire ni **le pic empirique concentré sur les premières années**, ni la forte asymétrie à droite. La courbe théorique est constamment en dessous de l'histogramme sur 0–5 ans et au-dessus sur 10–20 ans.
+
+- **CDF empirique vs théorique** : Les déviations sont **nettement plus importantes** que pour toutes les autres lois. La CDF empirique monte très rapidement (beaucoup de divorces précoces), tandis que la CDF théorique démarre à une valeur déjà positive à $t = 0$ (du fait de la masse en zone négative) et monte plus lentement. Un écart systématique et important est visible sur toute la plage 0–15 ans.
+
+- **Q-Q plot** : Ce graphique révèle le **pire ajustement de toutes les lois testées**. L'axe des quantiles théoriques s'étend dans les valeurs **négatives** (jusqu'à $-20$), ce qui est fondamentalement incompatible avec des durées de mariage positives. Les points du bas du graphique (durées courtes) sont regroupés à $y \approx 0$ tandis que les quantiles théoriques associés sont négatifs, créant un décrochage vertical visible. Dans la zone positive, une **courbure en S prononcée** confirme l'asymétrie fondamentale non capturée par le modèle.
+
+- **P-P plot** : La courbe présente un **écart systématique et important au-dessus de la diagonale** sur quasiment l'ensemble de la plage $[0.1, 0.9]$. Les probabilités empiriques sont constamment bien supérieures aux probabilités théoriques, ce qui traduit une **sous-estimation structurelle** des probabilités cumulées pour les durées courtes et intermédiaires. Cette déformation caractéristique confirme que la loi normale est totalement inadaptée à ces données.
+
+**Conclusion :** La loi normale est de loin le **pire ajustement** parmi toutes les lois testées (AIC = 35 995, BIC = 36 008). L'ensemble des quatre graphiques diagnostics — et en particulier le Q-Q plot qui s'étend en territoire négatif et le P-P plot systématiquement biaisé — confirme que les durées de mariage suivent une distribution fortement asymétrique et bornée inférieurement, incompatible avec la loi normale. Ces résultats motivent l'exclusion de la loi log-normale, dont l'adéquation semblerait également limitée au regard de la forme empirique observée.
+
+---
 
 ## Comparaison des distributions paramétriques par AIC, BIC et test du chi-carré
 
 ### Rappel sur les critères AIC et BIC
 
-Les critères **AIC** (Akaike Information Criterion) et **BIC** (Bayesian Information Criterion) permettent de comparer plusieurs distributions paramétriques ajustées aux données, en prenant en compte :
-
-- la qualité de l’ajustement (vraisemblance),
-- la complexité du modèle (nombre de paramètres).
-
-Une valeur plus faible indique un meilleur compromis entre ajustement et parcimonie.
+Les critères **AIC** (Akaike Information Criterion) et **BIC** (Bayesian Information Criterion) permettent de comparer plusieurs distributions paramétriques ajustées aux données, en prenant en compte la qualité de l'ajustement (vraisemblance) et la complexité du modèle (nombre de paramètres). Une valeur plus faible indique un meilleur compromis entre ajustement et parcimonie.
 
 ---
 
-### Test du chi-carré d’adéquation
+### Test du chi-carré d'adéquation
 
-Le **test du chi-carré d’adéquation** permet d’évaluer si une distribution théorique ajustée est compatible avec les données observées.
+Le **test du chi-carré d'adéquation** évalue si une distribution théorique est compatible avec les données observées.
 
-- **Hypothèse nulle \(H_0\)** :  
-  > Les données suivent la distribution théorique considérée.
+- **$H_0$** : Les données suivent la distribution théorique considérée.
+- **$H_1$** : Les données ne suivent pas cette distribution.
 
-- **Hypothèse alternative \(H_1\)** :  
-  > Les données ne suivent pas cette distribution.
-
-Une **p-value faible** conduit au rejet de \(H_0\), indiquant une mauvaise adéquation du modèle.  
-Une **p-value élevée** suggère que l’on ne peut pas rejeter l’hypothèse d’adéquation.
-
+Une p-value faible conduit au rejet de $H_0$, indiquant une mauvaise adéquation.
 
 ---
 
 ### Tableau comparatif des lois testées
 
 ```{r gof_table_final, echo=FALSE, message=FALSE, warning=FALSE}
-# Variable de survie
 survival_time <- na.omit(data.brute$marriage_duration_years)
 
-# Ajustement des lois
 fit_exp     <- fitdist(survival_time, "exp")
 fit_weibull <- fitdist(survival_time, "weibull")
 fit_gamma   <- fitdist(survival_time, "gamma")
 fit_norm    <- fitdist(survival_time, "norm")
 
-# Loi bêta (après normalisation)
 survival_time_scaled <- survival_time / max(survival_time)
 fit_beta <- fitdist(survival_time_scaled, "beta")
 
-# Statistiques de goodness-of-fit
 gof_exp     <- gofstat(fit_exp)
 gof_weibull <- gofstat(fit_weibull)
 gof_gamma   <- gofstat(fit_gamma)
 gof_norm    <- gofstat(fit_norm)
 gof_beta    <- gofstat(fit_beta)
 
-# Construction du tableau
 gof_df <- data.frame(
   Distribution = c("Exponentielle", "Weibull", "Gamma", "Normale", "Bêta (normalisée)"),
-  AIC = c(
-    fit_exp$aic,
-    fit_weibull$aic,
-    fit_gamma$aic,
-    fit_norm$aic,
-    fit_beta$aic
-  ),
-  BIC = c(
-    fit_exp$bic,
-    fit_weibull$bic,
-    fit_gamma$bic,
-    fit_norm$bic,
-    fit_beta$bic
-  ),
+  AIC = c(fit_exp$aic, fit_weibull$aic, fit_gamma$aic, fit_norm$aic, fit_beta$aic),
+  BIC = c(fit_exp$bic, fit_weibull$bic, fit_gamma$bic, fit_norm$bic, fit_beta$bic),
   Chi2 = c(
-    gof_exp$chisq,
-    gof_weibull$chisq,
-    gof_gamma$chisq,
-    gof_norm$chisq,
-    gof_beta$chisq
+    gof_exp$chisq, gof_weibull$chisq, gof_gamma$chisq,
+    gof_norm$chisq, gof_beta$chisq
   ),
   P_value = c(
-    gof_exp$chisqpvalue,
-    gof_weibull$chisqpvalue,
-    gof_gamma$chisqpvalue,
-    gof_norm$chisqpvalue,
-    gof_beta$chisqpvalue
+    gof_exp$chisqpvalue, gof_weibull$chisqpvalue, gof_gamma$chisqpvalue,
+    gof_norm$chisqpvalue, gof_beta$chisqpvalue
   )
-)
-
-# Mise en forme et affichage scientifique des p-values
-gof_df <- gof_df %>%
+) %>%
   mutate(
-    AIC = round(AIC, 1),
-    BIC = round(BIC, 1),
-    Chi2 = round(Chi2, 2),
-    P_value = ifelse(
-      P_value < 2.2e-16,
-      "< 2.2e-16",
-      formatC(P_value, format = "e", digits = 2)
-    )
+    AIC     = round(AIC, 1),
+    BIC     = round(BIC, 1),
+    Chi2    = round(Chi2, 2),
+    P_value = ifelse(P_value < 2.2e-16, "< 2.2e-16",
+                     formatC(P_value, format = "e", digits = 2))
   ) %>%
   arrange(AIC)
 
-# Affichage du tableau
 gof_df %>%
   kable(
-    format = "html",
-    caption = "Comparaison des lois paramétriques par AIC, BIC et test du chi-carré",
+    format    = "html",
+    caption   = "Comparaison des lois paramétriques par AIC, BIC et test du chi-carré",
     col.names = c("Distribution", "AIC", "BIC", "Chi-deux", "p-value"),
-    align = c("l", "c", "c", "c", "c")
+    align     = c("l", "c", "c", "c", "c")
   ) %>%
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed", "responsive"),
     full_width = FALSE,
-    position = "center"
+    position   = "center"
   ) %>%
   row_spec(0, bold = TRUE, color = "white", background = "#0073C2") %>%
   column_spec(1, bold = TRUE)
 ```
 
+### Interprétation du tableau comparatif
 
+L'analyse comparative met clairement en évidence une **hiérarchie entre les modèles** :
 
+**Loi Gamma (meilleur ajustement)** — avec AIC = 32 124 et BIC = 32 137, la loi Gamma obtient les meilleures valeurs parmi toutes les lois testées sur données non normalisées. Son paramètre de forme $\hat{\alpha} = 1.122 > 1$ traduit un léger risque croissant en début de mariage, cohérent avec l'analyse non paramétrique. Les diagnostics visuels confirment une bonne adéquation globale.
+
+**Loi Weibull (second meilleur)** — l'AIC (32 144) et le BIC (32 157) sont proches de ceux de la Gamma, mais légèrement supérieurs. Les graphiques diagnostics sont quasi identiques à ceux de la Gamma, ce qui est cohérent avec la proximité de leurs paramètres de forme respectifs ($\hat{\kappa} \approx 1.05$). Son interprétabilité directe du risque instantané reste un atout.
+
+**Loi exponentielle (troisième)** — l'AIC (32 162) est supérieur aux deux précédents, et l'histogramme diagnostique révèle une incapacité structurelle à reproduire le pic empirique des premières années. Ce modèle sert néanmoins de **baseline** utile pour évaluer la complexité nécessaire.
+
+**Loi normale (très mauvais ajustement)** — l'AIC (35 995) est nettement supérieur à toutes les autres lois, avec un écart de plus de 3 800 points par rapport à la Gamma. Les graphiques confirment une inadéquation fondamentale : Q-Q plot s'étendant en territoire négatif, P-P plot systématiquement biaisé.
+
+**Loi Bêta (non comparable)** — les valeurs d'AIC et BIC aberrantes ($\approx 2.147 \times 10^{13}$) résultent de problèmes numériques liés à la normalisation de données discrètes. Cette loi est **à exclure** du comparatif.
+
+> **Remarque générale :** Toutes les p-values du test du chi-carré sont inférieures à $2.2 \times 10^{-16}$, conduisant au rejet systématique de $H_0$ pour l'ensemble des lois testées. Ce résultat est fréquent sur de grands échantillons ($n = 5000$) : avec un tel effectif, le test du chi-carré détecte des écarts même infimes à la loi théorique. Les critères AIC et BIC, ainsi que les diagnostics visuels, restent des indicateurs plus pertinents pour la sélection du modèle.
+
+**En conclusion**, la **loi Gamma** constitue le meilleur compromis entre adéquation aux données et parcimonie. Elle sera retenue comme distribution de référence pour la modélisation paramétrique de la durée des mariages dans ce jeu de données.
